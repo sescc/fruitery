@@ -1,0 +1,20 @@
+{
+  "name": "@fruitery/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure, runtime-agnostic model and logic shared by the Worker, PWA and desktop app.",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./index.js": "./index.js",
+    "./time.js": "./time.js",
+    "./schedule.js": "./schedule.js",
+    "./url-tokens.js": "./url-tokens.js",
+    "./model.js": "./model.js",
+    "./order.js": "./order.js",
+    "./removal.js": "./removal.js",
+    "./sync.js": "./sync.js",
+    "./seed.js": "./seed.js"
+  }
+}

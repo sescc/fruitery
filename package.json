@@ -1,0 +1,20 @@
+{
+  "name": "fruitery",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*", "apps/*"],
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test": "node --test",
+    "build:web": "node scripts/build-web.mjs",
+    "package:desktop": "npm run package -w apps/desktop",
+    "install:desktop": "node scripts/install-desktop.mjs",
+    "gen:seed": "node scripts/gen-seed-sql.mjs",
+    "wrangler:config": "node scripts/wrangler-config.mjs",
+    "deploy:web": "npm run build:web && npm run wrangler:config && npm exec -w apps/web -- wrangler deploy --config .local/wrangler.toml",
+    "migrate:local": "npm exec -w apps/web -- wrangler d1 migrations apply fruitery --local",
+    "migrate:remote": "npm run wrangler:config && npm exec -w apps/web -- wrangler d1 migrations apply fruitery --remote --config .local/wrangler.toml",
+    "seed:local": "npm run gen:seed && npm exec -w apps/web -- wrangler d1 execute fruitery --local --file=.local/seed.sql",
+    "seed:remote": "npm run gen:seed && npm run wrangler:config && npm exec -w apps/web -- wrangler d1 execute fruitery --remote --config .local/wrangler.toml --file=.local/seed.sql"
+  }
+}

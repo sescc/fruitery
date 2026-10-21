@@ -1,0 +1,25 @@
+# Portable "dir" build (D36): an unpacked folder that runs from wherever it is copied.
+# `npm run package -w apps/desktop` stages the app into .cache/stage (see launcher.mjs, which mirrors
+# the repo layout so packages/core sits next to apps/desktop inside the asar) and builds from there.
+appId: app.fruitery.desktop
+productName: Fruitery
+asar: true
+electronLanguages:
+  - en-US
+npmRebuild: false
+nodeGypRebuild: false
+buildDependenciesFromSource: false
+publish: null
+directories:
+  app: ../../.cache/stage
+  buildResources: ../../.cache/stage/build
+  output: release
+files:
+  - "**/*"
+  - "!**/*.test.js"
+win:
+  icon: icon.png
+  target:
+    - target: dir
+      arch:
+        - x64

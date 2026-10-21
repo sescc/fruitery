@@ -1,0 +1,34 @@
+# Web — status
+
+## Headline
+✅ Deployed and verified 2026-10-15 (change `web-checklist`; 148 web tests). Phone editing (`phone-editor`) was redeployed and verified by the owner 2026-10-20. The service-token auth for the desktop (`desktop-sync` 1.1) and the `desktop-polish` PWA changes were redeployed by the owner on 2026-10-20 (`npm run deploy:web`); 195 web tests (the tick accepts a reported time and an untick a period, `offline-ticks`; link rows, `phone-links-in-groups`). The Worker secret `SERVICE_TOKEN_IDS` is set and the desktop connects (2026-10-20).
+
+## Completeness
+| Object / morphism | State | Notes |
+|---|---|---|
+| D1 schema + seeding scripts | ✅ built | `apps/web/migrations/0001_init.sql`, `apps/web/migrations/0002_item_user_agent.sql` (run `npm run migrate:remote` once for it), `scripts/gen-seed-sql.mjs`; local migrate + seed checked with `wrangler d1` |
+| Worker API + Access JWT | ✅ built | `apps/web/src/api.js`, `apps/web/src/auth.js`, `apps/web/src/store.js`; verified on the real deployment 2026-10-15 (all three Access logins reach the checklist; ticks sync phone and PC both ways; migration 0002 applied remotely) |
+| PWA | ✅ built | `apps/web/public/`; verified on the real deployment 2026-10-15: installed on Android, service worker active in desktop Chrome, airplane-mode cold start shows the stored list greyed with "as of"; also checked locally against `wrangler dev` (render, tick, reload, offline banner, tick failure, 403 clearing the stored list) |
+| Phone editor (`phone-editor`) | ✅ built, redeployed 2026-10-20 | `apps/web/public/editor.js`, `apps/web/public/editor-model.js`; checked under `wrangler dev` at 375 px (add, edit, invalid URL, delete with confirmation, move, group and workspace delete, last workspace, settings, preserved desktop fields, offline-disabled toggle); the redeploy and a phone test are the user's |
+| Link rows in groups (`phone-links-in-groups`, D146) | ✅ built, not yet deployed | `apps/web/public/view.js:buildView`, `apps/web/public/app.js:itemNode`; unscheduled items show inside their group on the phone, replacing the separate Links section (D100); checked under `wrangler dev` at 375 px with generic data; the redeploy and a phone look are the user's |
+| Offline ticks, Worker side (`offline-ticks`, D148) | ✅ built, not yet deployed | `apps/web/src/store.js` (`tick` with `doneAt`, `untick` with `periodKey`, `FEATURES`), `apps/web/src/api.js`, core `previousPeriodStart`; `POST /api/ticks` accepts the time the desktop made a tick (within 48 h back and 5 min ahead; the period is decided here from the stored timezone and the item's reset time), `DELETE ...?periodKey=` takes the current or previous period, `GET /api/state` lists `features: ['tick-done-at']`; old clients are unchanged; the phone itself still ticks online only; the redeploy is the owner's |
+| GitHub Actions deploy/migrate | ✅ built | `.github/workflows/deploy.yml`, `.github/workflows/migrate.yml` (not run yet; the deploy so far was done from a PC with `npm run deploy:web`); `wrangler deploy --dry-run` passes |
+
+## Needs work
+0a. Redeploy needed (`npm run deploy:web`, no migration) to ship `phone-links-in-groups` (link rows inside their groups, D146) and `offline-ticks` (the Worker side: `doneAt`, `periodKey`, `features`). The order does not matter: until the Worker lists `tick-done-at`, a desktop holds its queued ticks (nothing is lost, D152).
+0. Done: the redeploy (`npm run deploy:web`, no migration) that ships the `desktop-polish` PWA icons/CSP/service-worker cache and the `desktop-sync` 1.1 service-token auth, by the owner on 2026-10-20. `SERVICE_TOKEN_IDS` is set and the desktop connects (2026-10-20); a second PC needs its own token and its Client ID added to the list (`docs/desktop/general/sync-setup.md`). Still to check: that the phone shows site icons.
+1. GitHub Actions (`.github/workflows/deploy.yml`, `.github/workflows/migrate.yml`) have not been run yet. Before they are used, add the secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` and `D1_DATABASE_ID`. The workflows pin `wranglerVersion` to the version in `apps/web/package.json` (a test keeps them equal); bump both together.
+2. The Access-session-expiry reload has not been observed in real use yet (the PWA reloads into the login once per 30 s, else shows the denial message).
+3. `desktop-sync` (desktop side) is code complete; the real two-PC and phone check is manual (`docs/desktop/general/manual-checks.md`, section 11).
+
+Deploy reference: `OWNER_EMAIL` is always required (the email(s) you sign in with, e.g. your Google address and your Cloudflare account address, comma-separated); `TEAM_DOMAIN` and `POLICY_AUD` are needed only for the JWT-header path (recommended: set all three, so either Access mechanism works). `SERVICE_TOKEN_IDS` (optional until a PC syncs, change `desktop-sync`): the Client IDs of the Access service tokens allowed to call the API, comma-separated, exactly as the dashboard shows them; set it with `wrangler secret put SERVICE_TOKEN_IDS`. Details and sources: `docs/web/general/service-tokens.md`. The D1 id stays out of the repo (git-ignored config/cloudflare.local.json, shape in `config/cloudflare.example.json`, or env `D1_DATABASE_ID`). `npm run deploy:web`, `npm run migrate:remote` and `npm run seed:remote` use it.
+
+## Diagnosing a 403
+The PWA shows "(reason: ...)" under "Signed out or not allowed", and the Worker logs one line `auth denied <reason> {path}` (see `wrangler tail`). Reasons are codes only. Typical fixes: `email-mismatch` or `owner-email-missing` → fix `OWNER_EMAIL`; `jwt-wrong-audience` or `jwt-wrong-issuer` → fix `POLICY_AUD` or `TEAM_DOMAIN`; `jwt-config-missing` → set `TEAM_DOMAIN` and `POLICY_AUD`; `service-token-not-allowed` → add the token's Client ID to `SERVICE_TOKEN_IDS` (exact, case-sensitive); `service-token-ids-missing` → set `SERVICE_TOKEN_IDS`; `no-credentials` → Access is not reaching the Worker with an identity.
+
+## Coherence
+No FAILs. Review: `docs/web/reviews/review-web-checklist.md`.
+
+## Where to dig
+- Model: ARCHITECTURE.md · Code map: IMPLEMENTATION.md
+- In flight: none · Archived: `openspec/changes/archive/2026-10-21-phone-links-in-groups/`, `openspec/changes/archive/2026-10-21-offline-ticks/` (both need the redeploy), `openspec/changes/archive/2026-10-15-web-checklist/`, `openspec/changes/archive/2026-10-20-phone-editor/`, `openspec/changes/archive/2026-10-20-desktop-sync/` (Worker side 1.1 deployed; the secret `SERVICE_TOKEN_IDS` is set; each further PC needs its token id added) · Specs: `openspec/specs/sync-api/`, `openspec/specs/phone-checklist/`

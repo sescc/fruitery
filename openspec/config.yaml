@@ -1,0 +1,38 @@
+schema: spec-driven
+
+# specs/ vs ARCHITECTURE.md (supercharge references/openspec.md §4): choice B.
+# openspec/specs/ holds observable, consumer-facing behaviour only (Worker HTTP API,
+# PWA and desktop user-visible behaviour, schedule/due semantics as the user sees them).
+# docs/<component>/ARCHITECTURE.md holds internal objects, morphisms and laws.
+
+context: |
+  Architecture method: FRAMEWORK.md (Dat / Trn / Loc / Trm + §4.5 coherence laws).
+  Every claim must name its object, morphism, location or transmission and map to a
+  real file:symbol, a planned item, or an explicit open question. Never invent
+  architecture that cannot be grounded.
+
+  Project: Fruitery (repo folder ProductivityUnifier). Package scope: @fruitery/*. A portable Electron desktop app (apps/desktop) that shows
+  web apps in workspaces with split panes, plus a Cloudflare Worker + D1 + PWA (apps/web)
+  that syncs workspaces/items/ticks and serves the Android checklist. Pure shared logic lives
+  in packages/core. Model: docs/architecture-map.md and docs/<component>/ARCHITECTURE.md.
+  Decisions log: CLAUDE.md.
+
+  Conventions: plain JavaScript ES modules with JSDoc and `// @ts-check` (no TypeScript
+  build, no bundler, no UI framework). Only devDependencies allowed: electron,
+  electron-builder, wrangler. Tests use Node's built-in `node:test` and `node:assert/strict`
+  (run with `node --test`); D1 is emulated in tests with `node:sqlite`. Node >= 24.
+  Windows is the desktop platform; shipped defaults are neutral (timezone UTC); personal values live in git-ignored config/*.local.json.
+
+rules:
+  design:
+    - State the model delta as objects and morphisms with signature, partiality, semantics
+    - Run the §3 Consolidation check — is this a new object, or an existing object plus morphisms?
+    - Name the §4.5 coherence laws the change must keep satisfied
+    - Isolate effects behind ports; deduce rather than store; one source of truth for shared structure
+  specs:
+    - Observable, consumer-facing behaviour only — no internal class or function names
+    - Every requirement carries at least one happy-path and one failure Scenario
+  tasks:
+    - Every new or changed morphism gets a row in docs/<component>/IMPLEMENTATION.md with its file:symbol
+    - Reconcile ARCHITECTURE.md, IMPLEMENTATION.md and STATUS.md before archiving
+    - Run the supercharge drift check and fix dead rows before archiving

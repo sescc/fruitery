@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Fruitery</title>
+  <!-- only images are restricted: the app's own files, any https site's icon (item icons) and data URLs -->
+  <meta http-equiv="Content-Security-Policy" content="img-src 'self' https: data:">
+  <meta name="description" content="Fruitery: today's picks across your daily sites.">
+  <meta name="theme-color" content="#f6f4ee" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16201a" media="(prefers-color-scheme: dark)">
+  <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="top-row">
+      <h1 id="title">Today's picks</h1>
+      <button id="edit-toggle" type="button" class="icon-btn toggle" aria-pressed="false" title="Edit" hidden>&#9998;</button>
+    </div>
+    <p id="summary" class="summary" aria-live="polite"></p>
+    <p id="asof" class="summary" hidden></p>
+  </header>
+  <div id="offline" class="banner" role="status" hidden>
+    You are offline. Showing the last loaded list; ticking is disabled until you are back online.
+  </div>
+  <main id="app"><p class="empty">Loading...</p></main>
+  <div id="toast" class="toast" role="alert" hidden></div>
+  <noscript><p class="empty">Fruitery needs JavaScript.</p></noscript>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

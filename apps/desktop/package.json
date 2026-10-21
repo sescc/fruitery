@@ -1,0 +1,18 @@
+{
+  "name": "@fruitery/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Fruitery desktop app: portable Electron shell with workspaces, split panes and long-lived logins.",
+  "main": "main/main.js",
+  "scripts": {
+    "start": "node launcher.mjs",
+    "smoke": "node launcher.mjs --smoke",
+    "smoke:restart": "node launcher.mjs --smoke --smoke-step=2",
+    "package": "node launcher.mjs --package"
+  },
+  "devDependencies": {
+    "electron": "^44.7.2",
+    "electron-builder": "^26.15.3"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@fruitery/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Fruitery web component: Cloudflare Worker (API + static assets) and the phone checklist PWA.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.149.0"
+  }
+}

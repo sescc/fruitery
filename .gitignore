@@ -1,0 +1,22 @@
+node_modules/
+dist/
+graphify-out/
+apps/desktop/data/
+.wrangler/
+config/*.local.json
+apps/web/.local/
+.dev.vars
+*.dev.vars
+!.dev.vars.example
+.env
+.env.*
+!.env.example
+.claude/settings.local.json
+data/
+apps/web/dist/
+apps/web/.dev.vars
+
+# desktop app
+apps/desktop/release/
+.cache/
+

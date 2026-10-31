@@ -671,6 +671,38 @@ export async function phasePolish(/** @type {any} */ ctx) {
   const itemMenu = smoke.menus.at(-1) ?? [];
   const editEntry = itemMenu.find((/** @type {any} */ e) => e.label === 'Edit…');
   check('the right-click menu of a list item shows F3 beside "Edit…" (display only)', editEntry?.accelerator === 'F3' && editEntry?.registerAccelerator === false, editEntry);
+  check('the item menu offers "Pin to strip" when nothing is pinned', itemMenu.some((/** @type {any} */ e) => e.label === 'Pin to strip'));
+
+  // ------------------------------------------------------------------ pinned-item strip (e.g. a time-tracking site)
+  const pinRes = await br("setPin({itemId: 'a1'})");
+  check('setPin accepts a live item', pinRes.ok === true && store.device().pinnedItemId === 'a1');
+  check('setPin refuses an unknown item', (await br("setPin({itemId: 'no-such'})")).ok === false && store.device().pinnedItemId === 'a1');
+  await waitFor(() => ui("!document.getElementById('pin-strip').hidden && !!document.querySelector('#pin-strip .pin-body[data-pane=\"__pin\"]')"), 'pin strip body shown', 4000).catch(() => {});
+  check('the pin strip appears with a body once an item is pinned', (await ui("!document.getElementById('pin-strip').hidden")) === true);
+  // the pinned item's view is attached and awake (a rect was reported and the view manager woke it)
+  await waitFor(() => br("getState()").then((/** @type {any} */ s) => s.viewStates?.a1?.awake === true), 'pinned view awake', 5000).catch(() => {});
+  check('the pinned item\'s view wakes in the strip', (await br('getState()')).viewStates?.a1?.awake === true);
+  // collapse: the body goes away but the view is kept alive (still awake)
+  await br('setPin({collapsed: true})');
+  await waitFor(() => ui("document.getElementById('pin-strip').classList.contains('collapsed') && !document.querySelector('#pin-strip .pin-body')"), 'pin strip collapsed', 4000).catch(() => {});
+  check('collapsing hides the body but keeps the item pinned and its view alive', store.device().pinnedCollapsed === true && (await br('getState()')).viewStates?.a1?.awake === true);
+  // a pinned, collapsed item is never slept by the timer
+  const slept = await ctx.views.sleepTick(Date.now() + 100000000);
+  check('the pinned item is never unloaded by the sleep timer', !slept.includes('a1') && (await br('getState()')).viewStates?.a1?.awake === true, slept);
+  // unpin via the menu entry
+  await ctx.api.handlers.contextMenu('item', 'a1');
+  const pinnedMenu = smoke.menus.at(-1) ?? [];
+  check('the item menu offers "Unpin from strip" while pinned', pinnedMenu.some((/** @type {any} */ e) => e.label === 'Unpin from strip'));
+  await br("setPin({itemId: null})");
+  await waitFor(() => ui("document.getElementById('pin-strip').hidden"), 'pin strip hidden after unpin', 4000).catch(() => {});
+  check('unpinning hides the strip', store.device().pinnedItemId === null && (await ui("document.getElementById('pin-strip').hidden")) === true);
+  await br('setPin({collapsed: false})');
+
+  // ------------------------------------------------------------------ disk cache cap + clear web cache
+  check('the disk-cache cap is a device setting with the default', store.device().diskCacheMB === 200);
+  check('saveDevice clamps the disk-cache cap to the safe range', (await br('saveDevice({diskCacheMB: 5})')).ok === true && store.device().diskCacheMB === 50 && (await br('saveDevice({diskCacheMB: 150})')).ok === true && store.device().diskCacheMB === 150);
+  const cleared = await br('clearWebCache()');
+  check('clearWebCache clears the live site sessions and keeps logins (cookies untouched)', cleared.ok === true && typeof cleared.cleared === 'number' && cleared.cleared >= 1, cleared);
 
   // ------------------------------------------------------------------ the page's right-click menu
   // A right click is only turned into a context menu when the page has a presented frame to hit-test; right after a

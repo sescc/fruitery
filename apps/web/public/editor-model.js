@@ -16,7 +16,7 @@ import { moveItem, reorder } from './core/index.js';
  * The only item fields the phone may change. Everything else (program path, kind, open-in-Edge,
  * sleep time, user-agent preset, isolation, keep-logins, icon, order, ...) is preserved as is.
  */
-export const PHONE_FIELDS = Object.freeze(['name', 'url', 'fallbackUrl', 'workspaceId', 'groupId', 'schedule', 'resetTime', 'devices', 'notify', 'badge']);
+export const PHONE_FIELDS = Object.freeze(['name', 'url', 'fallbackUrl', 'deepLink', 'workspaceId', 'groupId', 'schedule', 'resetTime', 'devices', 'notify', 'badge']);
 
 /**
  * @param {string} prefix e.g. 'it'
@@ -79,6 +79,7 @@ export function newItem(snapshot, where, nowMs, id) {
     persistSessionCookies: true,
     sleepAfterMin: null,
     userAgent: { preset: 'default', custom: null },
+    deepLink: null,
     updatedAt: nowMs,
     deleted: false,
   };
@@ -110,6 +111,7 @@ export function applyForm(item, form, nowMs, snapshot) {
   if (has('name')) out.name = typeof form.name === 'string' ? form.name.trim() : '';
   if (has('url')) out.url = textOrNull(form.url);
   if (has('fallbackUrl')) out.fallbackUrl = textOrNull(form.fallbackUrl);
+  if (has('deepLink')) out.deepLink = textOrNull(form.deepLink);
   if (has('schedule')) out.schedule = form.schedule ? /** @type {Schedule} */ (structuredClone(form.schedule)) : null;
   if (has('resetTime')) out.resetTime = /** @type {string} */ (form.resetTime);
   if (has('devices')) out.devices = /** @type {Item['devices']} */ (form.devices);
@@ -132,13 +134,14 @@ export function applyForm(item, form, nowMs, snapshot) {
 /**
  * The inverse of `applyForm`: form values for prefilling the item sheet.
  * @param {Item} item
- * @returns {{name: string, url: string, fallbackUrl: string, workspaceId: string, groupId: string, schedule: Schedule | null, resetTime: string, devices: Item['devices'], notify: boolean, badge: boolean}}
+ * @returns {{name: string, url: string, fallbackUrl: string, deepLink: string, workspaceId: string, groupId: string, schedule: Schedule | null, resetTime: string, devices: Item['devices'], notify: boolean, badge: boolean}}
  */
 export function formFromItem(item) {
   return {
     name: item.name,
     url: item.url ?? '',
     fallbackUrl: item.fallbackUrl ?? '',
+    deepLink: item.deepLink ?? '',
     workspaceId: item.workspaceId,
     groupId: item.groupId ?? '',
     schedule: item.schedule ? /** @type {Schedule} */ (structuredClone(item.schedule)) : null,
@@ -351,6 +354,7 @@ export function checkName(name) {
 const MESSAGES = /** @type {Record<string, string>} */ ({
   required: 'Required',
   'invalid-url': 'Must start with http:// or https://',
+  'invalid-deep-link': 'Not a safe app link (e.g. intent://… or myapp://…; no javascript:/data:/file:)',
   'invalid-time': 'Use HH:MM, from 00:00 to 23:59',
   'invalid-date': 'Not a real date (use YYYY-MM-DD)',
   'invalid-value': 'Not an allowed value',

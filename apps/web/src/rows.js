@@ -19,7 +19,7 @@ export const TABLES = Object.freeze({
     columns: [
       'id', 'workspace_id', 'group_id', 'ord', 'name', 'icon', 'kind', 'url', 'app_path', 'fallback_url', 'devices',
       'schedule', 'reset_time', 'notify', 'badge', 'edge_mode', 'edge_profile', 'isolate', 'persist_session_cookies',
-      'sleep_after_min', 'user_agent', 'updated_at', 'deleted',
+      'sleep_after_min', 'user_agent', 'deep_link', 'updated_at', 'deleted',
     ],
   },
   settings: { table: 'settings', columns: ['id', 'timezone', 'google_email', 'updated_at'] },
@@ -72,6 +72,7 @@ export function toRow(kind, e) {
         edge_profile: e.edge.profile ?? null, isolate: bit(e.isolate),
         persist_session_cookies: bit(e.persistSessionCookies), sleep_after_min: e.sleepAfterMin ?? null,
         user_agent: e.userAgent === null || e.userAgent === undefined ? null : JSON.stringify(e.userAgent),
+        deep_link: e.deepLink ?? null,
         updated_at: e.updatedAt, deleted: bit(e.deleted),
       };
     case 'settings':
@@ -104,7 +105,7 @@ export function fromRow(kind, r) {
         resetTime: r.reset_time, notify: r.notify === 1, badge: r.badge === 1,
         edge: { mode: r.edge_mode, profile: r.edge_profile }, isolate: r.isolate === 1,
         persistSessionCookies: r.persist_session_cookies === 1, sleepAfterMin: r.sleep_after_min,
-        userAgent: decodeUserAgent(r.user_agent), updatedAt: r.updated_at, deleted: r.deleted === 1,
+        userAgent: decodeUserAgent(r.user_agent), deepLink: r.deep_link ?? null, updatedAt: r.updated_at, deleted: r.deleted === 1,
       });
     case 'settings':
       return /** @type {Settings} */ ({ timezone: r.timezone, googleEmail: r.google_email, updatedAt: r.updated_at });

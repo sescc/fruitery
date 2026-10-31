@@ -2,7 +2,7 @@
 // Pure view model of the phone checklist (no DOM, no clock): a deduction from the snapshot and the
 // current instant using the shared core. In the built app `./core/` is a copy of packages/core.
 
-import { bucket, expandUrl, nextDue, periodKey, ungroupedLabelOf } from './core/index.js';
+import { bucket, expandUrl, isUsableDeepLink, nextDue, periodKey, ungroupedLabelOf } from './core/index.js';
 
 /** @typedef {import('./core/model.js').Workspace} Workspace */
 /** @typedef {import('./core/model.js').Group} Group */
@@ -10,7 +10,7 @@ import { bucket, expandUrl, nextDue, periodKey, ungroupedLabelOf } from './core/
 /** @typedef {import('./core/model.js').Settings} Settings */
 /** @typedef {import('./core/schedule.js').Completion} Completion */
 /** @typedef {{workspaces: Workspace[], groups: Group[], items: Item[], settings?: Settings, completions: Completion[]}} Snapshot */
-/** @typedef {{id: string, name: string, icon: string | null, iconUrl: string | null, bucket: 'due' | 'done' | 'notDue' | 'link', nextDue: string | null, href: string | null, hint: 'set-google-email' | null}} ItemView `bucket` 'link' = an unscheduled item (a link row, no tick) */
+/** @typedef {{id: string, name: string, icon: string | null, iconUrl: string | null, bucket: 'due' | 'done' | 'notDue' | 'link', nextDue: string | null, href: string | null, hint: 'set-google-email' | null, webHref: string | null}} ItemView `bucket` 'link' = an unscheduled item (a link row, no tick); `href` is the open-target (a deep link when set), `webHref` the web escape-hatch shown only alongside a deep link */
 /** @typedef {{id: string | null, name: string, progress: {done: number, total: number}, items: ItemView[]}} GroupView `progress` counts the check-ins only, never the link rows */
 /** @typedef {{id: string, name: string, groups: GroupView[], notDue: ItemView[]}} WorkspaceView */
 
@@ -26,23 +26,35 @@ function byOrder(a, b) {
 /**
  * The address to open for an item: web items use `url` (falling back to `fallbackUrl`), app items
  * use `fallbackUrl`; placeholders are filled for the current time. `hint` explains a missing link.
+ * A usable `deepLink` (an installed-app target, phone only) takes over as the primary `href`; when
+ * the item also has a web link that web link is returned as `webHref`, so the row can show a small
+ * "↗ web" escape-hatch chip. Without a deep link `href` is the web link and `webHref` is null.
  * @param {Item} item
  * @param {number} nowMs
  * @param {Settings} settings
- * @returns {{href: string | null, hint: 'set-google-email' | null}}
+ * @returns {{href: string | null, hint: 'set-google-email' | null, webHref: string | null}}
  */
 function linkOf(item, nowMs, settings) {
   const blank = (/** @type {string | null | undefined} */ s) => s === null || s === undefined || s.trim() === '';
-  const template = item.kind === 'app' ? item.fallbackUrl : blank(item.url) ? item.fallbackUrl : item.url;
-  if (blank(template)) return { href: null, hint: null };
-  try {
-    const r = expandUrl(/** @type {string} */ (template), nowMs, settings.timezone, settings);
-    if (r.missing.includes('googleEmail')) return { href: null, hint: 'set-google-email' };
-    if (r.unknown.length > 0) return { href: null, hint: null };
-    return { href: r.url, hint: null };
-  } catch {
-    return { href: null, hint: null };
+  /** The expanded web open-target, or a hint when a token is missing/unknown. */
+  const webOf = () => {
+    const template = item.kind === 'app' ? item.fallbackUrl : blank(item.url) ? item.fallbackUrl : item.url;
+    if (blank(template)) return { href: null, hint: /** @type {'set-google-email' | null} */ (null) };
+    try {
+      const r = expandUrl(/** @type {string} */ (template), nowMs, settings.timezone, settings);
+      if (r.missing.includes('googleEmail')) return { href: null, hint: /** @type {const} */ ('set-google-email') };
+      if (r.unknown.length > 0) return { href: null, hint: null };
+      return { href: r.url, hint: null };
+    } catch {
+      return { href: null, hint: null };
+    }
+  };
+  const web = webOf();
+  // a deep link is validated defensively here: a bad stored value is ignored and the web link is used
+  if (isUsableDeepLink(item.deepLink)) {
+    return { href: /** @type {string} */ (item.deepLink), hint: null, webHref: web.href };
   }
+  return { href: web.href, hint: web.hint, webHref: null };
 }
 
 /**

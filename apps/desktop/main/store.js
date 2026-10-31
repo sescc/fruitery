@@ -12,6 +12,7 @@ import { periodKey, validateItem, validateWorkspace, reorder as reorderSiblings,
 import { selectSeed } from '../lib/seed-select.js';
 import * as Layout from '../lib/layout.js';
 import { DEFAULT_LIST_WIDTH, sanitizeListWidth } from '../lib/list-width.js';
+import { DEFAULT_DISK_CACHE_MB, clampDiskCacheMB } from '../lib/disk-cache.js';
 import { emptySyncConfig, isComplete, sanitizeSyncConfig } from '../lib/sync-config.js';
 import { sanitizeApprovedPrograms } from '../lib/program-approval.js';
 import { KINDS, MAX_TICK_OPS, enqueue, enqueueTick, mergeSnapshot } from '../lib/sync-plan.js';
@@ -36,6 +37,9 @@ import { KINDS, MAX_TICK_OPS, enqueue, enqueueTick, mergeSnapshot } from '../lib
  * @property {number} listWidth width of the item list panel in px (180..600)
  * @property {import('../lib/sync-config.js').SyncConfig} sync which Worker and access key this PC syncs with (the secret is not here)
  * @property {string[]} approvedPrograms program paths the owner allowed to start on this PC (D89; never synced)
+ * @property {string | null} pinnedItemId the item shown in the strip at the bottom of the list column (e.g. a time-tracking site), or null; per-PC, never synced
+ * @property {boolean} pinnedCollapsed the pinned strip is collapsed to its header only
+ * @property {number} diskCacheMB HTTP disk-cache cap in MB (50..1024); applied at launch by paths.js
  */
 /** @typedef {{kind: string, id: string | null, field: string, code: string}} EditError */
 /** @typedef {import('../lib/sync-plan.js').OutboxEntry} OutboxEntry */
@@ -111,7 +115,7 @@ const WORKSPACE_KEYS = ['id', 'name', 'icon', 'order', 'sleepAfterMin', 'openInE
 const GROUP_KEYS = ['id', 'workspaceId', 'name', 'order', 'collapsed', 'updatedAt', 'deleted'];
 const ITEM_KEYS = [
   'id', 'workspaceId', 'groupId', 'order', 'name', 'icon', 'kind', 'url', 'appPath', 'fallbackUrl', 'devices', 'schedule',
-  'resetTime', 'notify', 'badge', 'edge', 'isolate', 'persistSessionCookies', 'sleepAfterMin', 'userAgent', 'updatedAt', 'deleted',
+  'resetTime', 'notify', 'badge', 'edge', 'isolate', 'persistSessionCookies', 'sleepAfterMin', 'userAgent', 'deepLink', 'updatedAt', 'deleted',
 ];
 
 /** @returns {DeviceSettings} */
@@ -128,6 +132,9 @@ export function deviceDefaults() {
     listWidth: DEFAULT_LIST_WIDTH,
     sync: emptySyncConfig(),
     approvedPrograms: [],
+    pinnedItemId: null,
+    pinnedCollapsed: false,
+    diskCacheMB: DEFAULT_DISK_CACHE_MB,
   };
 }
 
@@ -174,6 +181,7 @@ function itemDefaults(p) {
     persistSessionCookies: true,
     sleepAfterMin: null,
     userAgent: { preset: 'default', custom: null },
+    deepLink: null,
     deleted: false,
     updatedAt: 0,
     ...p,
@@ -307,13 +315,19 @@ export function openStore(dir, options = {}) {
     if (r.edgeProfile === null || (typeof r.edgeProfile === 'string' && r.edgeProfile.trim() === '')) d.edgeProfile = null;
     else if (typeof r.edgeProfile === 'string' && r.edgeProfile.length <= 100) d.edgeProfile = r.edgeProfile.trim();
     d.listWidth = sanitizeListWidth(r.listWidth, sanitizeListWidth(d.listWidth));
+    d.diskCacheMB = clampDiskCacheMB(r.diskCacheMB, clampDiskCacheMB(d.diskCacheMB));
     if (isObject(r.sync)) d.sync = sanitizeSyncConfig(r.sync);
     else d.sync = sanitizeSyncConfig(d.sync);
     d.approvedPrograms = sanitizeApprovedPrograms(Array.isArray(r.approvedPrograms) ? r.approvedPrograms : d.approvedPrograms);
     if (typeof r.autostart === 'boolean') d.autostart = r.autostart;
     if (typeof r.closeToTray === 'boolean') d.closeToTray = r.closeToTray;
+    if (typeof r.pinnedCollapsed === 'boolean') d.pinnedCollapsed = r.pinnedCollapsed;
     const liveWs = new Set(snap.workspaces.filter((w) => !w.deleted).map((w) => w.id));
     const liveItems = new Set(snap.items.filter((i) => !i.deleted).map((i) => i.id));
+    // the pinned item must still exist; a deleted (or unknown) one drops the pin. An explicit null clears it.
+    if (typeof r.pinnedItemId === 'string') d.pinnedItemId = r.pinnedItemId;
+    else if (r.pinnedItemId === null) d.pinnedItemId = null;
+    if (d.pinnedItemId !== null && !liveItems.has(d.pinnedItemId)) d.pinnedItemId = null;
     if (typeof r.activeWorkspaceId === 'string') d.activeWorkspaceId = r.activeWorkspaceId;
     if (isObject(r.activeItemByWorkspace)) d.activeItemByWorkspace = /** @type {any} */ (r.activeItemByWorkspace);
     if (isObject(r.layouts)) d.layouts = /** @type {any} */ (r.layouts);
@@ -837,7 +851,7 @@ export function openStore(dir, options = {}) {
    */
   function updateDevice(patch) {
     if (isObject(patch)) {
-      const known = ['edgeProfile', 'autostart', 'closeToTray', 'activeWorkspaceId', 'activeItemByWorkspace', 'layouts', 'focusedPaneByWorkspace', 'windowBounds', 'listWidth', 'sync', 'approvedPrograms'];
+      const known = ['edgeProfile', 'autostart', 'closeToTray', 'activeWorkspaceId', 'activeItemByWorkspace', 'layouts', 'focusedPaneByWorkspace', 'windowBounds', 'listWidth', 'sync', 'approvedPrograms', 'pinnedItemId', 'pinnedCollapsed', 'diskCacheMB'];
       device = sanitizeDevice(pick(patch, known), device);
       saveDevice();
     }

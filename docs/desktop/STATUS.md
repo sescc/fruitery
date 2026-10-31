@@ -22,6 +22,11 @@
 | pane title, address field, page actions and page menu (D120, D121) | ✅ built | `apps/desktop/lib/address.js`, `apps/desktop/lib/page-menu.js`, `apps/desktop/ui/panes.js`, `apps/desktop/main/views.js` |
 | item icons (D116) | ✅ built | `apps/desktop/main/icons.js`, `apps/desktop/lib/favicon.js`; GIF / WebP / SVG icons are not decoded (letter stays) |
 | Daily bar without prompt, tick circle, return toast (D117, D119) | ✅ built | `apps/desktop/ui/app.js`, `apps/desktop/ui/list.js`, `apps/desktop/lib/return-tracker.js` |
+| Daily-bar streak (D156) | ✅ built | `apps/desktop/ui/panes.js` (`streakChip`, `SHOW_LONGEST` flag), core `streak`; "🔥 N · best M" for scheduled panes |
+| Ctrl+Enter → www.<host>.com in the address field (D155) | ✅ built | `apps/desktop/lib/address.js` (`wrapDotCom`), `apps/desktop/ui/panes.js` |
+| item `deepLink` editable (phone-only open-target, D157) | ✅ built | `apps/desktop/ui/editor.js`, `apps/desktop/main/store.js` (`ITEM_KEYS`, `itemDefaults`); the desktop stores/syncs it but never opens it |
+| pinned-item strip (D159) | ✅ built | `apps/desktop/lib/pin-strip.js`, `apps/desktop/ui/pin.js`, `apps/desktop/main/store.js` (`pinnedItemId`/`pinnedCollapsed`), `apps/desktop/main/views.js` (never sleeps while pinned), `apps/desktop/ui/panes.js` (`__pin` rect), `apps/desktop/main/ipc.js` (`setPin`, menu); any item can be pinned (e.g. a time-tracking site) |
+| configurable disk-cache cap + clear web cache (D160) | ✅ built | `apps/desktop/lib/disk-cache.js`, `apps/desktop/main/paths.js` (reads `diskCacheMB`), `apps/desktop/main/sessions.js` (`clearCache`), `apps/desktop/main/ipc.js` (`clearWebCache`), `apps/desktop/ui/editor.js` (Settings) |
 | portable `dir` packaging | ✅ built | `apps/desktop/electron-builder.yml`, `scripts/install-desktop.mjs`; the install folder is about 320 MB |
 
 ## Deferred manual checks

@@ -378,20 +378,34 @@ function nameNode(item) {
 }
 
 /**
+ * The name plus, when the item has a deep link and also a web address, a small "↗ web" chip that
+ * opens the web address instead of the app. Returns the nodes to place in the row.
+ * @param {ItemView} item
+ * @returns {HTMLElement[]}
+ */
+function nameNodes(item) {
+  const nodes = [nameNode(item)];
+  if (item.href && item.webHref) {
+    nodes.push(h('a', { class: 'web-chip', href: item.webHref, target: '_blank', rel: 'noopener noreferrer', title: 'Open the website instead of the app', 'aria-label': `Open ${item.name} website` }, '↗ web'));
+  }
+  return nodes;
+}
+
+/**
  * @param {ItemView} item
  * @returns {HTMLElement}
  */
 function itemNode(item) {
   if (item.bucket === 'link') {
     // an unscheduled item: a link marker where a check-in has its tick circle, and no tick (not counted anywhere)
-    return h('li', { class: 'item link' }, h('span', { class: 'link-mark', 'aria-hidden': 'true' }, '↗'), iconNode(item), nameNode(item));
+    return h('li', { class: 'item link' }, h('span', { class: 'link-mark', 'aria-hidden': 'true' }, '↗'), iconNode(item), ...nameNodes(item));
   }
   const checked = item.bucket === 'done';
   const input = /** @type {HTMLInputElement} */ (h('input', { type: 'checkbox', 'data-item-id': item.id, 'aria-label': `Mark ${item.name} as done` }));
   input.checked = checked;
   input.disabled = isOffline() || busy.has(item.id);
   input.addEventListener('change', () => void toggle(item.id, input.checked));
-  return h('li', { class: checked ? 'item done' : 'item' }, h('label', { class: 'check' }, input), iconNode(item), nameNode(item));
+  return h('li', { class: checked ? 'item done' : 'item' }, h('label', { class: 'check' }, input), iconNode(item), ...nameNodes(item));
 }
 
 /**
@@ -399,7 +413,7 @@ function itemNode(item) {
  * @returns {HTMLElement}
  */
 function notDueNode(item) {
-  return h('li', { class: 'item' }, iconNode(item), nameNode(item), h('span', { class: 'next' }, `Next: ${formatDay(item.nextDue)}`));
+  return h('li', { class: 'item' }, iconNode(item), ...nameNodes(item), h('span', { class: 'next' }, `Next: ${formatDay(item.nextDue)}`));
 }
 
 /**

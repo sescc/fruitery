@@ -259,6 +259,7 @@ export function createEditor(host) {
     const name = input({ name: 'name', type: 'text', autocomplete: 'off', value: form.name });
     const url = input({ name: 'url', type: 'text', inputmode: 'url', autocapitalize: 'none', autocomplete: 'off', placeholder: 'https://', value: form.url });
     const fallback = input({ name: 'fallbackUrl', type: 'text', inputmode: 'url', autocapitalize: 'none', autocomplete: 'off', placeholder: 'https://', value: form.fallbackUrl });
+    const deepLink = input({ name: 'deepLink', type: 'text', inputmode: 'url', autocapitalize: 'none', autocomplete: 'off', spellcheck: false, placeholder: 'intent://…  or  myapp://…', value: form.deepLink });
     const workspace = select(live.map((w) => [w.id, w.name]), form.workspaceId);
     const group = /** @type {HTMLSelectElement} */ (h('select', { name: 'groupId' }));
     const fillGroups = () => {
@@ -300,6 +301,7 @@ export function createEditor(host) {
       field('Name', name, 'name'),
       ...(isApp ? [] : [field('Web address', url, 'url')]),
       field(isApp ? 'Web address used on the phone' : 'Fallback web address (optional)', fallback, 'fallbackUrl'),
+      field('App link on the phone (optional)', deepLink, 'deepLink'),
       field('Workspace', workspace, 'workspaceId'),
       field('Group', group, 'groupId'),
       field('Repeats', type, 'schedule'),
@@ -318,6 +320,7 @@ export function createEditor(host) {
         name: name.value,
         ...(isApp ? {} : { url: url.value }),
         fallbackUrl: fallback.value,
+        deepLink: deepLink.value,
         workspaceId: workspace.value,
         groupId: group.value,
         schedule: scheduleFromFields({ type: type.value, weekday: weekday.value, day: day.value, n: n.value, startDate: start.value }),

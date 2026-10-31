@@ -132,15 +132,46 @@ button { cursor: pointer; }
   z-index: 3;
 }
 #list-divider:hover, #list-divider.dragging { background: var(--focus); }
-#list {
+#list-col {
   width: var(--list-width, 270px);
+  box-sizing: border-box;
   flex: none;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
   background: var(--surface);
-  border-right: 1px solid var(--border);
+}
+#list {
+  flex: 1;
+  min-height: 0;
+  background: var(--surface);
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
+/* pinned-item strip at the bottom of the list column (e.g. a time-tracking site) */
+#pin-strip {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+#pin-strip[hidden] { display: none; }
+#pin-strip .pin-head {
+  flex: none;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+#pin-strip .pin-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#pin-strip .pin-body { flex: 1; min-height: 0; position: relative; }
+#pin-strip.collapsed .pin-body { display: none; }
 #list .list-head {
   flex: none;
   padding: 10px 10px 6px;
@@ -329,6 +360,7 @@ details.not-due summary {
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
+.daily-bar .streak { font-size: 12px; color: var(--text); white-space: nowrap; }
 .daily-bar .status { color: var(--muted); margin-left: auto; font-size: 12px; }
 .daily-bar .done-btn { border-color: var(--ok); }
 .pane-body {

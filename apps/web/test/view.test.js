@@ -126,6 +126,31 @@ test('App items open their fallback URL; without any usable URL they are not ope
   assert.equal(findItem(buildView(s3, NOW), 'it-language').href, 'https://fallback.example.com/');
 });
 
+test('Deep link: it becomes the open-target; a web URL alongside it is offered as webHref (the "↗ web" chip)', () => {
+  const dl = 'intent://open/#Intent;scheme=myapp;package=com.example.app;end';
+  // deep link + a web url: href is the deep link, webHref the web link (chip shown)
+  const s = patch(snap(), 'it-language', { deepLink: dl, url: 'https://learn.example.org/daily' });
+  const both = findItem(buildView(s, NOW), 'it-language');
+  assert.deepEqual([both.href, both.webHref, both.hint], [dl, 'https://learn.example.org/daily', null]);
+  // deep link but no web url: href is the deep link, no chip
+  const s2 = patch(snap(), 'it-language', { deepLink: dl, url: null, fallbackUrl: null });
+  const only = findItem(buildView(s2, NOW), 'it-language');
+  assert.deepEqual([only.href, only.webHref], [dl, null]);
+  // no deep link: href is the web link, no chip (unchanged behaviour)
+  const s3 = snap();
+  const plain = findItem(buildView(s3, NOW), 'it-language');
+  assert.deepEqual([plain.href, plain.webHref], ['https://learn.example.org/daily', null]);
+  // an invalid stored deep link is ignored: the web link is used and no chip is offered
+  const s4 = patch(snap(), 'it-language', { deepLink: 'javascript:alert(1)', url: 'https://learn.example.org/daily' });
+  const unsafe = findItem(buildView(s4, NOW), 'it-language');
+  assert.deepEqual([unsafe.href, unsafe.webHref], ['https://learn.example.org/daily', null]);
+  // a deep link on a check-in item: the bucket (tick) is unaffected, href is still the deep link
+  const s5 = patch(snap(), 'it-language', { deepLink: dl });
+  const checkIn = findItem(buildView(s5, NOW), 'it-language');
+  assert.equal(checkIn.bucket, 'due');
+  assert.equal(checkIn.href, dl);
+});
+
 test('Ungrouped items come last as the ungrouped group (id null); stored order is kept', () => {
   const s = snap();
   patch(s, 'it-word-game', { groupId: null });

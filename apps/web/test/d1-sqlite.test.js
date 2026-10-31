@@ -9,7 +9,7 @@ import { FakeD1, applyMigrations, createMigratedDb } from '../test-support/d1-sq
 test('migrations apply and create the expected tables', async () => {
   const db = new FakeD1();
   const files = await applyMigrations(db);
-  assert.deepEqual(files, ['0001_init.sql', '0002_item_user_agent.sql', '0003_workspace_ungrouped_label.sql']);
+  assert.deepEqual(files, ['0001_init.sql', '0002_item_user_agent.sql', '0003_workspace_ungrouped_label.sql', '0004_item_deep_link.sql']);
   const { results } = await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all();
   assert.deepEqual(
     results.map((r) => r.name),

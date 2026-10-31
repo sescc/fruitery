@@ -74,6 +74,7 @@ function items(workspaceId, groupId, entries) {
     badge: schedule === null,
     edge: { mode: /** @type {const} */ ('inherit'), profile: null },
     userAgent: { preset: /** @type {const} */ ('default'), custom: null },
+    deepLink: null,
     isolate: false,
     persistSessionCookies: true,
     sleepAfterMin: null,

@@ -32,9 +32,21 @@ test('an item with every optional field set round-trips', () => {
     url: null, appPath: 'C:\\x.exe', fallbackUrl: 'https://example.com/', devices: /** @type {const} */ ('phone'),
     schedule: /** @type {const} */ ({ type: 'weekly', weekday: 3 }), resetTime: '04:00', notify: true, badge: true,
     edge: { mode: /** @type {const} */ ('always'), profile: 'Profile 1' }, isolate: true, persistSessionCookies: false,
-    sleepAfterMin: 0, userAgent: { preset: /** @type {const} */ ('custom'), custom: 'MyAgent/1.0 (test)' }, updatedAt: 99, deleted: true,
+    sleepAfterMin: 0, userAgent: { preset: /** @type {const} */ ('custom'), custom: 'MyAgent/1.0 (test)' },
+    deepLink: 'intent://open/#Intent;scheme=myapp;package=com.example.app;end', updatedAt: 99, deleted: true,
   };
   assert.deepEqual(fromRow('item', toRow('item', item)), item);
+});
+
+test('deepLink: stored as text and decoded back; NULL (or absent) decodes to null', () => {
+  const base = JSON.parse(JSON.stringify(SEED.items[0]));
+  assert.equal(toRow('item', { ...base, deepLink: 'myapp://open' }).deep_link, 'myapp://open');
+  assert.equal(toRow('item', { ...base, deepLink: null }).deep_link, null);
+  // a row whose deep_link column is NULL or missing decodes to null
+  assert.equal(fromRow('item', { ...toRow('item', base), deep_link: null }).deepLink, null);
+  const row = toRow('item', base);
+  delete row.deep_link;
+  assert.equal(fromRow('item', row).deepLink, null);
 });
 
 test('completions round-trip', () => {
@@ -106,4 +118,22 @@ test('ungroupedLabel: stored as text, NULL (or absent) decodes to null; the 0003
   const db = await createMigratedDb();
   const { results } = await db.prepare("SELECT name FROM pragma_table_info('workspaces')").all();
   assert.ok(results.some((r) => r.name === 'ungrouped_label'));
+});
+
+test('deep_link: an item row written before migration 0004 reads as NULL and decodes to null', async () => {
+  const db = new FakeD1();
+  const { readFileSync } = await import('node:fs');
+  const dir = new URL('../migrations/', import.meta.url);
+  for (const f of ['0001_init.sql', '0002_item_user_agent.sql', '0003_workspace_ungrouped_label.sql']) await db.exec(readFileSync(new URL(f, dir), 'utf8'));
+  // a row written before deep_link existed
+  await db.exec("INSERT INTO items (id, workspace_id, group_id, ord, name, icon, kind, url, app_path, fallback_url, devices, schedule, reset_time, notify, badge, edge_mode, edge_profile, isolate, persist_session_cookies, sleep_after_min, user_agent, updated_at, deleted) VALUES ('old', 'w', NULL, 0, 'Old', NULL, 'web', 'https://example.com/', NULL, NULL, 'all', NULL, '00:00', 0, 0, 'inherit', NULL, 0, 1, NULL, NULL, 1, 0)");
+  await db.exec(readFileSync(new URL('0004_item_deep_link.sql', dir), 'utf8'));
+  const row = await db.prepare('SELECT * FROM items WHERE id = ?').bind('old').first();
+  assert.ok(row);
+  assert.equal(row.deep_link, null);
+  assert.equal(fromRow('item', row).deepLink, null);
+  // the column exists on a fully migrated database
+  const migrated = await createMigratedDb();
+  const { results } = await migrated.prepare("SELECT name FROM pragma_table_info('items')").all();
+  assert.ok(results.some((r) => r.name === 'deep_link'));
 });

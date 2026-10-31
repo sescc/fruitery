@@ -11,6 +11,7 @@ const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satur
 function messageFor(code, field) {
   if (code === 'required') return 'Required';
   if (code === 'invalid-url') return 'Enter an http:// or https:// address';
+  if (code === 'invalid-deep-link') return 'Not a safe app link (intent://… or myapp://…; no javascript:/data:/file:)';
   if (code === 'unknown-token') return 'Unknown placeholder. Use {YYYY} {MM} {DD} or {googleEmail}';
   if (code === 'invalid-time') return 'Use HH:MM';
   if (code === 'invalid-date') return 'Enter a real date';
@@ -69,6 +70,7 @@ function itemFromValues(v) {
     url: String(v.url).trim() || null,
     appPath: String(v.appPath).trim() || null,
     fallbackUrl: String(v.fallbackUrl).trim() || null,
+    deepLink: String(v.deepLink).trim() || null,
     devices: v.devices,
     workspaceId: v.workspaceId,
     groupId: v.groupId || null,
@@ -130,6 +132,7 @@ export async function openItemEditor(ctx, itemId) {
       { key: 'url', label: 'Address', value: existing?.url ?? '', placeholder: 'https://…', hint: 'Placeholders: {YYYY} {MM} {DD} {googleEmail}', showIf: (v) => v.kind === 'web' },
       { key: 'appPath', label: 'Program', value: existing?.appPath ?? '', browse: true, showIf: (v) => v.kind === 'app' },
       { key: 'fallbackUrl', label: 'Fallback address', value: existing?.fallbackUrl ?? '', placeholder: 'https://…', hint: 'Opens in a pane when the program is missing', showIf: (v) => v.kind === 'app' },
+      { key: 'deepLink', label: 'App link on the phone (optional)', value: existing?.deepLink ?? '', placeholder: 'intent://…  or  myapp://…', hint: 'Opens an installed app on the phone instead of the web address. The desktop never opens it.' },
       { key: 'workspaceId', label: 'Workspace', type: 'select', value: wsId, options: workspaces.map((/** @type {any} */ w) => ({ value: w.id, label: w.name })), hint: existing ? 'Moving keeps the history and leaves the group' : undefined },
       { key: 'groupId', label: 'Group', type: 'select', value: existing?.groupId ?? '', options: groupOptions(wsId), optionsFor: (v) => groupOptions(v.workspaceId) },
       { key: 'devices', label: 'Shown on', type: 'select', value: existing?.devices ?? 'all', options: [{ value: 'all', label: 'All devices' }, { value: 'desktop', label: 'Desktop only' }, { value: 'phone', label: 'Phone only' }] },
@@ -306,6 +309,7 @@ export async function openSettings(ctx, opts = {}) {
       { key: 'googleEmail', label: 'Google account email (fills {googleEmail} in addresses)', value: settings.googleEmail ?? '', placeholder: 'name@example.com' },
       { key: 'edgeProfile', label: 'Edge profile folder on this PC (blank = Edge’s default)', value: device.edgeProfile ?? '', placeholder: 'Profile 2' },
       { key: 'autostart', label: 'Start with Windows (hidden in the tray)', type: 'checkbox', value: device.autostart, hint: ctx.state.meta.packaged ? undefined : 'Saved now; it takes effect in the packaged app.' },
+      { key: 'diskCacheMB', label: 'Web cache cap (MB, 50–1024, applies next launch)', type: 'number', value: device.diskCacheMB ?? 200, hint: 'Caps cached web content on disk. Does not affect the app size or your logins.' },
       { key: 'syncBaseUrl', section: 'Sync', sectionHint: 'Setup guide: docs/desktop/general/sync-setup.md', label: 'Worker address', value: initial.baseUrl, placeholder: 'https://your-worker.example.com' },
       { key: 'syncClientId', label: 'Client ID', value: '', placeholder: sync.clientIdTail ? `…${sync.clientIdTail}` : '', hint: clientIdHint(sync) },
       { key: 'syncSecret', label: 'Client secret', type: 'password', value: '', hint: secretHint(sync) },
@@ -356,6 +360,28 @@ export async function openSettings(ctx, opts = {}) {
           },
         ],
       },
+      {
+        key: 'cacheActions',
+        section: 'Storage',
+        type: 'actions',
+        label: '',
+        buttons: [
+          {
+            label: 'Clear web cache (keep logins)',
+            run: async (_v, helpers) => {
+              const answer = await ctx.api.confirm({
+                message: 'Clear the cached web content?',
+                detail: 'Frees disk space in the data folder. You stay signed in to your sites; pages just reload fresh next time.',
+                buttons: ['Clear', 'Cancel'],
+                cancelId: 1,
+              });
+              if (answer.response !== 0) return '';
+              const r = await ctx.api.clearWebCache();
+              return r.ok ? 'Web cache cleared. Your logins are kept.' : 'Could not clear the cache.';
+            },
+          },
+        ],
+      },
     ],
     validate: (v) => {
       const email = String(v.googleEmail).trim();
@@ -369,7 +395,8 @@ export async function openSettings(ctx, opts = {}) {
       const email = String(v.googleEmail).trim();
       const res = await ctx.api.saveSettings({ timezone: v.timezone, googleEmail: email === '' ? null : email });
       if (res.errors) return { errors: errorsToMap(res.errors.map((/** @type {any} */ e) => ({ field: e.field, code: e.code }))) };
-      await ctx.api.saveDevice({ edgeProfile: String(v.edgeProfile).trim() || null, autostart: v.autostart === true });
+      const mb = Number(String(v.diskCacheMB).trim());
+      await ctx.api.saveDevice({ edgeProfile: String(v.edgeProfile).trim() || null, autostart: v.autostart === true, ...(Number.isFinite(mb) ? { diskCacheMB: mb } : {}) });
       return undefined;
     },
   });

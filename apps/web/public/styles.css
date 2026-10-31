@@ -131,6 +131,20 @@ a.name { text-decoration: none; }
 a.name::after { content: " \2197"; color: var(--muted); font-size: 0.8em; }
 .item.done .name { color: var(--muted); text-decoration: line-through; }
 .hint { color: var(--muted); font-size: 0.85rem; }
+/* the "↗ web" escape-hatch chip beside a name that opens an installed app (a deep link) */
+.web-chip {
+  flex: none;
+  align-self: center;
+  margin-left: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.web-chip:active { background: var(--border); }
 
 /* a link row (an unscheduled item): an arrow in the tick column, the same width so names line up */
 .link-mark {

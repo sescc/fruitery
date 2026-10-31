@@ -4,14 +4,15 @@
 > changes what is done (§6.5).
 
 ## Headline
-✅ Built — 148 core tests green (`previousPeriodStart` from `offline-ticks` 1.1; `userAgent` from `desktop-shell` 1.1; `removalPlan` from `phone-editor` 1.1; `validateWorkspace` and `ungroupedLabelOf` from `phone-editor` 5.3).
+✅ Built — core tests green (`previousPeriodStart` from `offline-ticks` 1.1; `userAgent` from `desktop-shell` 1.1; `removalPlan` from `phone-editor` 1.1; `validateWorkspace` and `ungroupedLabelOf` from `phone-editor` 5.3; `streak`, `MAX_EVERY_N_DAYS` and `validateDeepLink` from the feature batch 2026-10-31).
 
 ## Completeness
 | Object / morphism | State | Notes |
 |---|---|---|
-| model typedefs + validateItem + effectiveSleep + effectiveEdge + moveItem + userAgentOf | ✅ built | `packages/core/model.js` |
-| time helpers + periodKey / previousPeriodStart / bucket / nextDue | ✅ built | `packages/core/time.js`, `packages/core/schedule.js` |
+| model typedefs + validateItem + effectiveSleep + effectiveEdge + moveItem + userAgentOf | ✅ built | `packages/core/model.js` (item `deepLink` field, D157) |
+| time helpers + periodKey / previousPeriodStart / bucket / nextDue / streak | ✅ built | `packages/core/time.js`, `packages/core/schedule.js` (`streak` {current, longest}, D156; `MAX_EVERY_N_DAYS` bound, D154) |
 | expandUrl | ✅ built | `packages/core/url-tokens.js` |
+| validateDeepLink / isUsableDeepLink | ✅ built | `packages/core/deep-link.js` (phone deep-link safety, D157) |
 | removalPlan (shared deletion rules) | ✅ built | `packages/core/removal.js` |
 | reorder / mergeLww | ✅ built | `packages/core/order.js`, `packages/core/sync.js` |
 | seed | ✅ built | `packages/core/seed.js` (11 example items) |

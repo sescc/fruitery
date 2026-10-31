@@ -61,6 +61,12 @@ Tapping an item's name SHALL open its URL, with placeholders filled, in a new br
 the site's own Android app if the phone hands it over. App-type items SHALL open their fallback
 URL. Items without any usable URL SHALL be shown as not openable.
 
+When an item has a usable deep link (see item-model "Phone deep link"), that deep link SHALL be the
+name's open-target instead of the web address. When such an item also has a web address, the row
+SHALL show a small "↗ web" chip beside the name that opens the web address, so the owner can reach
+the website on the rare occasion they want it. An item whose stored deep link is not usable SHALL
+fall back to its web address and show no chip. A deep-linked check-in SHALL still show its tick.
+
 #### Scenario: Rotating URL
 - **WHEN** the owner taps "Monthly shop (example)" on 2026-11-03
 - **THEN** the opened address ends in `/202611`
@@ -68,6 +74,14 @@ URL. Items without any usable URL SHALL be shown as not openable.
 #### Scenario: Missing Google email
 - **WHEN** an item's URL needs the Google email and none is set
 - **THEN** the item shows a hint to set the Google email in settings instead of opening a broken address
+
+#### Scenario: Deep link opens the app, with a web escape hatch
+- **WHEN** an item has a deep link and also a web address
+- **THEN** tapping its name opens the deep link, and a "↗ web" chip beside the name opens the web address
+
+#### Scenario: A deep-linked check-in still ticks
+- **WHEN** a check-in item has a deep link
+- **THEN** its checkbox still ticks it, and tapping its name opens the deep link
 
 ### Requirement: Installable and always fresh
 The app SHALL be installable to the Android home screen behind Cloudflare Access. It SHALL load
@@ -99,6 +113,10 @@ at their next refresh. Deleting SHALL ask for confirmation first.
 #### Scenario: Delete needs confirmation
 - **WHEN** the owner taps delete on an item and cancels the confirmation
 - **THEN** nothing changes
+
+#### Scenario: Set a phone deep link
+- **WHEN** the owner sets an item's "App link on the phone" to a safe deep link and saves
+- **THEN** the item stores it and, after a refresh, the desktop keeps it (the desktop never opens it); an unsafe value shows a field error and nothing is sent
 
 ### Requirement: Organising from the phone
 In edit mode the owner SHALL be able to:

@@ -19,7 +19,7 @@ import { needsConfirm, approveProgram, afterAnswer } from '../lib/program-approv
  * @param {ReturnType<typeof import('./views.js').createViews>} ctx.views
  * @param {ReturnType<typeof import('./open.js').createOpener>} ctx.opener
  * @param {ReturnType<typeof import('./icons.js').createIcons>} ctx.icons
- * @param {{sessionFor: (item: Item) => {ses: any}}} ctx.sessions
+ * @param {{sessionFor: (item: Item) => {ses: any}, clearCache: () => Promise<{cleared: number}>}} ctx.sessions
  * @param {(autostart: boolean) => {applied: boolean}} ctx.applyAutostart
  * @param {any} ctx.dialog
  * @param {any} ctx.Menu
@@ -300,10 +300,37 @@ export function createApi(ctx) {
       if ('edgeProfile' in p) allowed.edgeProfile = p.edgeProfile;
       if ('autostart' in p) allowed.autostart = boolArg(p.autostart);
       if ('listWidth' in p) allowed.listWidth = indexArg(p.listWidth);
+      if ('diskCacheMB' in p) allowed.diskCacheMB = indexArg(p.diskCacheMB);
       const dev = store.updateDevice(/** @type {any} */ (allowed));
       const auto = ctx.applyAutostart(dev.autostart);
       broadcast();
       return { ok: true, autostartApplied: auto.applied };
+    },
+
+    /**
+     * Pin an item to the strip at the bottom of the list column, unpin it, or collapse/expand the
+     * strip. `itemId` must be a live item id (or null to unpin); an unknown id is refused.
+     * @param {unknown} input `{itemId?: string|null, collapsed?: boolean}`
+     */
+    async setPin(input) {
+      const p = objectArg(input);
+      /** @type {Record<string, unknown>} */
+      const patch = {};
+      if ('itemId' in p) {
+        const id = optionalIdArg(p.itemId);
+        if (id !== null && !liveItem(id)) return { ok: false, error: 'not-found' };
+        patch.pinnedItemId = id;
+      }
+      if ('collapsed' in p) patch.pinnedCollapsed = boolArg(p.collapsed);
+      store.updateDevice(/** @type {any} */ (patch));
+      broadcast();
+      return { ok: true };
+    },
+
+    /** Clear Chromium's web cache for every site session, keeping cookies and site storage (logins stay). */
+    async clearWebCache() {
+      const r = await ctx.sessions.clearCache();
+      return { ok: true, cleared: r.cleared };
     },
 
     /** Live sync status for the Sync settings. Only these fields ever reach the UI (never the secret). */
@@ -439,6 +466,9 @@ export function createApi(ctx) {
           { label: 'Open in split below', click: () => sendCommand({ type: 'split', itemId: target, dir: 'col' }) },
           { label: 'Open in Edge', click: () => { void handlers.openInEdge(target).then((r) => { if (!r.ok) sendCommand({ type: 'open-failed', itemId: target, blocked: /** @type {any} */ (r).blocked ?? null }); }); } },
           { label: 'Move to', submenu: others.length === 0 ? [{ label: 'No other workspace', enabled: false }] : others.map((w) => ({ label: w.name, click: () => { void handlers.moveItem(target, w.id); } })) },
+          store.device().pinnedItemId === target
+            ? { label: 'Unpin from strip', click: () => { void handlers.setPin({ itemId: null }); } }
+            : { label: 'Pin to strip', click: () => { void handlers.setPin({ itemId: target }); } },
           { type: 'separator' },
           { label: 'Delete…', click: () => sendCommand({ type: 'delete', kind: 'item', id: target }) },
         ];

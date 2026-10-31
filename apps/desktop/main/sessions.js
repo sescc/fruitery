@@ -134,6 +134,17 @@ export function createSessions({ electronSession, getSnapshot, itemIdOfWebConten
       flushTimers.clear();
       await Promise.all([...ready.values()].map((s) => Promise.resolve(s.cookies.flushStore()).catch(() => {})));
     },
+    /**
+     * Clear Chromium's HTTP/code cache for every live site session (the shared one and any isolated
+     * ones in use). Cookies, localStorage, IndexedDB and Service Worker storage are NOT touched, so
+     * logins survive; only cached web content is dropped. The app UI session is skipped.
+     * @returns {Promise<{cleared: number}>}
+     */
+    async clearCache() {
+      const sessions = [...ready.entries()].filter(([name]) => name !== 'fruitery-ui').map(([, s]) => s);
+      await Promise.all(sessions.map((s) => Promise.resolve(s.clearCache()).catch(() => {})));
+      return { cleared: sessions.length };
+    },
     partitions: () => [...ready.keys()],
   };
 }

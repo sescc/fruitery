@@ -12,6 +12,9 @@ import { addDays, daysBetween, daysInMonth, effectiveDay, formatDate, isoWeekday
 /** @typedef {{itemId: string, periodKey: string, doneAt: number}} Completion */
 /** @typedef {'due' | 'done' | 'notDue'} Bucket */
 
+/** Largest allowed `everyNDays.n` (~10 years). Bounds the period maths and the server's completions scan. */
+export const MAX_EVERY_N_DAYS = 3660;
+
 /**
  * Validate a schedule's shape and ranges.
  * Codes: `invalid-value` (not an object / unknown type), `out-of-range` (weekday not 1-7, day not
@@ -40,7 +43,7 @@ export function validateSchedule(schedule, prefix = 'schedule') {
       if (!inRange(s.day, 1, 31)) errors.push({ field: `${prefix}.day`, code: 'out-of-range' });
       break;
     case 'everyNDays':
-      if (!inRange(s.n, 1, Number.MAX_SAFE_INTEGER)) errors.push({ field: `${prefix}.n`, code: 'out-of-range' });
+      if (!inRange(s.n, 1, MAX_EVERY_N_DAYS)) errors.push({ field: `${prefix}.n`, code: 'out-of-range' });
       if (!isValidDate(s.startDate)) errors.push({ field: `${prefix}.startDate`, code: 'invalid-date' });
       break;
     default:
@@ -208,4 +211,59 @@ export function nextDue(item, completions, nowMs, tz) {
   }
   if (bucket(item, completions, nowMs, tz) === 'due') return effectiveDay(nowMs, tz, reset);
   return nextPeriodStart(item.schedule, pk);
+}
+
+/**
+ * The item's completion streak in periods (pure).
+ * - `current`: how many consecutive periods, ending at the latest *completable* one, were done. If
+ *   the current period is not yet done, the walk starts at the period before it, so "not done yet
+ *   today" never zeros a running streak; once the current period is done it is included.
+ * - `longest`: the longest run of consecutive done periods anywhere in the item's history.
+ * An item without a schedule, or with no completions, has `{current: 0, longest: 0}`. The walk is
+ * bounded by the item's own completions (a missing period stops it), so it cannot run unbounded.
+ * @param {{id: string, schedule: Schedule | null, resetTime: string}} item
+ * @param {Completion[]} completions
+ * @param {number} nowMs epoch ms
+ * @param {string} tz IANA timezone name
+ * @returns {{current: number, longest: number}}
+ */
+export function streak(item, completions, nowMs, tz) {
+  if (!item.schedule) return { current: 0, longest: 0 };
+  /** @type {Set<string>} the item's done period keys */
+  const done = new Set();
+  for (const c of completions) if (c.itemId === item.id) done.add(c.periodKey);
+  if (done.size === 0) return { current: 0, longest: 0 };
+
+  const schedule = item.schedule;
+  const reset = item.resetTime ?? '00:00';
+  const pk = periodKey(schedule, nowMs, tz, reset);
+
+  // current: walk back from the current period (if done) or the one before it (so today-not-done
+  // does not zero the streak), counting consecutive done periods until one is missing or there is none
+  let current = 0;
+  if (pk !== null) {
+    /** @type {string | null} */
+    let at = done.has(pk) ? pk : previousPeriodStart(schedule, pk);
+    while (at !== null && done.has(at)) {
+      current += 1;
+      at = previousPeriodStart(schedule, at);
+    }
+  }
+
+  // longest: for each done period that starts a run (its previous period is not done), count forward
+  let longest = 0;
+  for (const start of done) {
+    const prev = previousPeriodStart(schedule, start);
+    if (prev !== null && done.has(prev)) continue; // not the start of a run
+    let run = 0;
+    /** @type {string | null} */
+    let at = start;
+    while (at !== null && done.has(at)) {
+      run += 1;
+      at = nextPeriodStart(schedule, at);
+    }
+    if (run > longest) longest = run;
+  }
+
+  return { current, longest };
 }

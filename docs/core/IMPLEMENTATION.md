@@ -36,11 +36,13 @@
 | previousPeriodStart | `Schedule × PeriodKey → Date?` (the inverse of `nextPeriodStart`: daily −1 day, weekly −7, every-N-days −n and null before the start date, monthly the previous month's clamped day) | `packages/core/schedule.js:previousPeriodStart` | built |
 | bucket | `Item × Completion* × Instant × Tz → Bucket?` | `packages/core/schedule.js:bucket` | built |
 | nextDue | `Item × Completion* × Instant × Tz → Date?` | `packages/core/schedule.js:nextDue` | built |
-| validateSchedule | `Schedule → Error*` | `packages/core/schedule.js:validateSchedule` | built |
+| streak | `Item × Completion* × Instant × Tz → {current, longest}` (consecutive done periods; today-not-done does not zero `current`; D156) | `packages/core/schedule.js:streak` | built |
+| validateSchedule | `Schedule → Error*` (`everyNDays.n` bounded by `MAX_EVERY_N_DAYS = 3660`, D154) | `packages/core/schedule.js:validateSchedule` | built |
 | expandUrl | `𝕊 × Instant × Tz × Settings → {url, unknown, missing}` | `packages/core/url-tokens.js:expandUrl` | built |
 | findTokens | `𝕊 → 𝕊*` | `packages/core/url-tokens.js:findTokens` | built |
 | unknownTokens | `𝕊 → 𝕊*` | `packages/core/url-tokens.js:unknownTokens` | built |
-| validateItem | `Item × Group* → Error*` | `packages/core/model.js:validateItem` | built |
+| validateItem | `Item × Group* → Error*` (includes `deepLink` via `validateDeepLink`, D157) | `packages/core/model.js:validateItem` | built |
+| validateDeepLink / isUsableDeepLink | `𝕊? → Error*` / `𝕊? → 𝔹` (Android intent / safe custom scheme; rejects unsafe schemes and intent fallbacks; D157) | `packages/core/deep-link.js` | built |
 | effectiveSleep | `Item × Workspace → ℕ` | `packages/core/model.js:effectiveSleep` | built |
 | effectiveEdge | `Item × Workspace × Profile? → {open, profile}` | `packages/core/model.js:effectiveEdge` | built |
 | validateWorkspace | `Workspace → Error*` | `packages/core/model.js:validateWorkspace` | built |

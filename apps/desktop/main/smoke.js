@@ -301,12 +301,12 @@ async function phaseA(ctx) {
   const bridge = await ui('Object.keys(window.fruitery).sort()');
   check(
     'preload bridge exposes the IPC contract',
-    ['getState', 'onState', 'onCommand', 'onShortcut', 'show', 'setLayout', 'focusPane', 'setPaneRects', 'selectWorkspace', 'navigate', 'setOverlay', 'tick', 'untick', 'upsert', 'reorder', 'moveItem', 'remove', 'saveSettings', 'saveDevice', 'openInEdge', 'contextMenu', 'confirm', 'pickProgram', 'copyAddress', 'navigateTo', 'openPageInEdge', 'getIcon', 'refreshIcon', 'syncStatus', 'syncConfigure', 'syncTest', 'syncDisconnect', 'syncDiscard', 'syncDismissTickNotice'].every((k) => bridge.includes(k)),
+    ['getState', 'onState', 'onCommand', 'onShortcut', 'show', 'setLayout', 'focusPane', 'setPaneRects', 'selectWorkspace', 'navigate', 'setOverlay', 'tick', 'untick', 'upsert', 'reorder', 'moveItem', 'remove', 'saveSettings', 'saveDevice', 'setPin', 'clearWebCache', 'openInEdge', 'contextMenu', 'confirm', 'pickProgram', 'copyAddress', 'navigateTo', 'openPageInEdge', 'getIcon', 'refreshIcon', 'syncStatus', 'syncConfigure', 'syncTest', 'syncDisconnect', 'syncDiscard', 'syncDismissTickNotice'].every((k) => bridge.includes(k)),
     bridge,
   );
   const csp = await ui("document.querySelector('meta[http-equiv=\"Content-Security-Policy\"]')?.content ?? ''");
   check("strict CSP present (default-src 'self', no unsafe-inline / unsafe-eval)", csp.includes("default-src 'self'") && !csp.includes('unsafe'), csp);
-  check('disk-cache-size switch is 500 MB', app.commandLine.getSwitchValue('disk-cache-size') === String(DISK_CACHE_BYTES), app.commandLine.getSwitchValue('disk-cache-size'));
+  check('disk-cache-size switch matches the configured cap', app.commandLine.getSwitchValue('disk-cache-size') === String(DISK_CACHE_BYTES), app.commandLine.getSwitchValue('disk-cache-size'));
   check('the UI window only navigates to its own file', win.webContents.getURL().startsWith('file:'), win.webContents.getURL());
 }
 

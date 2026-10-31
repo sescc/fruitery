@@ -1,7 +1,7 @@
 // @ts-check
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeAddress, addressErrorText, createClickDecider } from '../lib/address.js';
+import { normalizeAddress, addressErrorText, createClickDecider, wrapDotCom } from '../lib/address.js';
 
 const ok = (/** @type {string} */ t) => {
   const r = normalizeAddress(t);
@@ -46,6 +46,31 @@ test('empty, blank, non-string, spaced and control-character input is refused; s
 
 test('every refusal has a message', () => {
   for (const e of /** @type {const} */ (['empty', 'too-long', 'invalid', 'scheme'])) assert.ok(addressErrorText(e).length > 5);
+});
+
+test('wrapDotCom wraps the host as www.<host>.com (Ctrl+Enter), keeping a path/query/hash', () => {
+  assert.equal(wrapDotCom('example'), 'www.example.com');
+  assert.equal(wrapDotCom('example/path?q=1#h'), 'www.example.com/path?q=1#h');
+  assert.equal(wrapDotCom('  example  '), 'www.example.com'); // trimmed
+  // scheme is preserved and the host wrapped inside it
+  assert.equal(wrapDotCom('http://example/a'), 'http://www.example.com/a');
+  assert.equal(wrapDotCom('https://example'), 'https://www.example.com');
+});
+
+test('wrapDotCom is idempotent for an already-wrapped host and strips an existing www./.com before wrapping', () => {
+  assert.equal(wrapDotCom('www.example.com'), 'www.example.com');
+  assert.equal(wrapDotCom('www.example.com/x'), 'www.example.com/x');
+  assert.equal(wrapDotCom('example.com'), 'www.example.com');
+  assert.equal(wrapDotCom('www.example'), 'www.example.com');
+  assert.equal(wrapDotCom('WWW.Example.COM'), 'www.Example.com'); // case of the core label is kept
+});
+
+test('wrapDotCom leaves input with no host token unchanged', () => {
+  assert.equal(wrapDotCom(''), '');
+  assert.equal(wrapDotCom('   '), '');
+  assert.equal(wrapDotCom('http://'), 'http://'); // nothing after the scheme to wrap
+  assert.equal(wrapDotCom('http:///path'), 'http:///path'); // host part is empty
+  assert.equal(wrapDotCom(42), '');
 });
 
 /** A fake clock-driven timer. */

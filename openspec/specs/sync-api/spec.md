@@ -59,6 +59,10 @@ return the stored versions.
 - **WHEN** a client sends a web item without a URL
 - **THEN** the API answers 422 with that item's id and a url error, and nothing in the request is stored
 
+#### Scenario: Deep link stored and validated
+- **WHEN** a client sends an item carrying a safe `deepLink` (an Android intent or custom scheme)
+- **THEN** it is stored and returned; an unsafe deep link is rejected with 422 and the code `invalid-deep-link`, and a client that omits the field stores NULL
+
 ### Requirement: Ticks are filed by the server clock
 `POST /api/ticks` with an item id SHALL record a tick for the item's period. The period SHALL be
 computed by the server from the item's schedule and reset time and the configured timezone, for

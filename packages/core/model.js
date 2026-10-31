@@ -4,6 +4,7 @@
 import { parseHHMM } from './time.js';
 import { validateSchedule } from './schedule.js';
 import { unknownTokens } from './url-tokens.js';
+import { validateDeepLink } from './deep-link.js';
 
 /** @typedef {import('./schedule.js').Schedule} Schedule */
 /** @typedef {import('./schedule.js').Completion} Completion */
@@ -58,6 +59,7 @@ import { unknownTokens } from './url-tokens.js';
  * @property {boolean} persistSessionCookies
  * @property {number | null} sleepAfterMin int >= 0; null = inherit the workspace value
  * @property {UserAgentPref} [userAgent] desktop user-agent preset; absent = default (see userAgentOf)
+ * @property {string | null} [deepLink] phone-only open-target (Android intent: / custom scheme); absent or null = none. The desktop never opens this. See `validateDeepLink`.
  * @property {number} updatedAt epoch ms
  * @property {boolean} deleted
  */
@@ -103,6 +105,8 @@ function isHttpUrl(v) {
  * - `userAgent.preset` `invalid-value` (unknown preset, or `userAgent` not an object), `userAgent.custom`
  *   `required` (custom preset with an empty string) or `out-of-range` (more than 512 characters).
  *   An absent or null `userAgent` is valid and means the default preset.
+ * - `invalid-deep-link`: `deepLink` is present but not a safe deep link (blank, too long, has
+ *   whitespace/control chars, an unsafe scheme, or an unsafe intent fallback). Absent/null is valid.
  * - `unknown-token`: `url` / `fallbackUrl` contains a `{placeholder}` that is not a known token.
  * - `group-workspace-mismatch`: `groupId` refers to a group of another workspace (field `groupId`).
  * - `group-not-found`: `groupId` is set, `groups` was supplied, and no group has that id.
@@ -170,6 +174,8 @@ export function validateItem(item, context = {}) {
       else if (ua.custom.length > USER_AGENT_MAX) errors.push({ field: 'userAgent.custom', code: 'out-of-range' });
     }
   }
+
+  errors.push(...validateDeepLink(item.deepLink));
 
   if (item.groupId !== null && item.groupId !== undefined && context.groups) {
     const group = context.groups.find((g) => g.id === item.groupId);

@@ -5,6 +5,10 @@
 
 import { h, renderIfChanged } from './dom.js';
 import * as Layout from '../lib/layout.js';
+import { wrapDotCom } from '../lib/address.js';
+
+/** Show the best-ever streak beside the current one in the Daily bar. Flip to false to hide it. */
+const SHOW_LONGEST = true;
 
 /** Which part of a pane an item was dropped on. @param {number} fx 0..1 @param {number} fy 0..1 */
 function zoneOf(fx, fy) {
@@ -46,6 +50,11 @@ function addressField(ctx, edit) {
         e.stopPropagation();
         if (e.key === 'Enter') {
           e.preventDefault();
+          // Ctrl+Enter wraps the typed host as www.<host>.com (as in a browser), then loads it
+          if (e.ctrlKey) {
+            edit.text = wrapDotCom(edit.text);
+            input.value = edit.text;
+          }
           void ctx.actions.submitAddress();
         } else if (e.key === 'Escape') {
           e.preventDefault();
@@ -106,6 +115,7 @@ export function renderPanes(el, ctx) {
       name: item.name,
       scheduled: item.schedule !== null,
       bucket: item.schedule ? ctx.bucketOf(item) : null,
+      streak: item.schedule ? ctx.streakOf(item) : null,
       next: item.schedule ? (ctx.model().notDue.find((/** @type {any} */ r) => r.item.id === item.id)?.nextDue ?? null) : null,
       awake: vs?.awake === true,
       loading: vs?.loading === true,
@@ -135,6 +145,15 @@ export function renderPanes(el, ctx) {
     /** @param {Layout.Layout} next @param {string | null} focus */
     const commit = (next, focus) => ctx.setLayout(next, focus);
 
+    /** The streak chip for a scheduled pane: "🔥 N" (and "· best M" when enabled), or nothing at 0. @param {any} info */
+    const streakChip = (info) => {
+      const s = info.streak;
+      if (!s || s.current <= 0) return null;
+      const label = SHOW_LONGEST && s.longest > s.current ? `🔥 ${s.current} · best ${s.longest}` : `🔥 ${s.current}`;
+      const title = SHOW_LONGEST ? `Current streak ${s.current}, best ${s.longest}` : `Current streak ${s.current}`;
+      return h('span', { class: 'streak', title }, label);
+    };
+
     /** @param {any} p @param {any} info */
     const dailyBar = (p, info) => {
       const item = ctx.itemById(info.id);
@@ -145,6 +164,7 @@ export function renderPanes(el, ctx) {
           ? h('button', { class: 'small-btn', title: info.tickNotice ?? undefined, disabled: Boolean(info.tickNotice), onclick: () => ctx.actions.untick(info.id) }, 'Undo')
           : h('button', { class: 'small-btn done-btn', title: info.tickNotice ?? 'Mark done and open the next due item', disabled: info.bucket === 'notDue' || Boolean(info.tickNotice), onclick: () => ctx.actions.done(p.paneId, item) }, 'Done'),
         h('button', { class: 'small-btn', title: 'Next due item', onclick: () => ctx.actions.next(p.paneId, item) }, 'Next'),
+        streakChip(info),
         h('span', { class: 'status' }, info.bucket === 'done' ? (info.waiting ? 'Picked today (waiting to be sent)' : 'Picked today') : info.bucket === 'notDue' ? `Not due${info.next ? ` · next ${info.next}` : ''}` : 'Due today'),
       );
     };
@@ -292,12 +312,23 @@ export function renderPanes(el, ctx) {
  * @param {Layout.Layout} tree
  */
 function reportRects(el, ctx, tree) {
+  const pinId = ctx.state?.device?.pinnedItemId ?? null;
+  const pinned = pinId && ctx.itemById(pinId) ? pinId : null;
   const list = Layout.leaves(tree).flatMap((leaf) => {
     const body = el.querySelector(`.pane-body[data-pane="${CSS.escape(leaf.paneId)}"]`);
     if (!body) return [];
     const r = body.getBoundingClientRect();
-    return [{ paneId: leaf.paneId, itemId: leaf.itemId && ctx.itemById(leaf.itemId) ? leaf.itemId : null, x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }];
+    // the pinned item lives in the strip, never in the pane grid: report its pane as empty
+    const itemId = leaf.itemId && leaf.itemId !== pinned && ctx.itemById(leaf.itemId) ? leaf.itemId : null;
+    return [{ paneId: leaf.paneId, itemId, x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }];
   });
+  // the pinned strip's body (when shown and not collapsed) hosts the pinned item's native view, placed
+  // like a pane; it is reported under a reserved pane id so the view manager keeps it attached and awake
+  const pinBody = pinned ? document.querySelector('#pin-strip .pin-body[data-pane="__pin"]') : null;
+  if (pinBody) {
+    const r = pinBody.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) list.push({ paneId: '__pin', itemId: pinned, x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) });
+  }
   const json = JSON.stringify(list);
   if (json === ctx.ui.lastRects) return;
   ctx.ui.lastRects = json;

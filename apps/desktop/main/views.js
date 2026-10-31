@@ -54,8 +54,9 @@ const POPUP_SIZE = { width: 520, height: 720 };
  * @param {{buildFromTemplate: (t: any[]) => {popup: (o?: object) => void}}} deps.Menu   Electron's Menu (a recording stub in smoke)
  * @param {{writeText: (text: string) => void}} deps.clipboard                (a recording stub in smoke)
  * @param {(itemId: string) => void} deps.openPageInEdge                      "Open page in Edge" for the item's current page
+ * @param {() => (string | null)} [deps.pinnedItemId]                         the item pinned to the list-column strip; it never sleeps while pinned
  */
-export function createViews({ win, sessions, getSnapshot, paneUrlFor, openExternal, onChange, onShortcut, onFocusItem, icons, Menu, clipboard, openPageInEdge }) {
+export function createViews({ win, sessions, getSnapshot, paneUrlFor, openExternal, onChange, onShortcut, onFocusItem, icons, Menu, clipboard, openPageInEdge, pinnedItemId = () => null }) {
   /** @type {Map<string, Entry>} */
   const entries = new Map();
   /** @type {Map<number, string>} webContents id -> item id (views and popups) */
@@ -446,7 +447,9 @@ export function createViews({ win, sessions, getSnapshot, paneUrlFor, openExtern
    */
   async function sleepTick(now = Date.now()) {
     const snap = getSnapshot();
-    const due = dueToSleep(entries.values(), snap.items, snap.workspaces, now);
+    const pinned = pinnedItemId();
+    // the pinned strip item never sleeps while it is pinned, even when the strip is collapsed (hidden)
+    const due = dueToSleep(entries.values(), snap.items, snap.workspaces, now).filter((id) => id !== pinned);
     for (const id of due) await sleep(id);
     return due;
   }

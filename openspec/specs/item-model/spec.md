@@ -14,8 +14,9 @@ The system SHALL reject an item, listing every offending field, when any of thes
 - an app item lacks an application path;
 - the fallback URL is not http(s);
 - the reset time is not a valid HH:MM;
-- a schedule field is out of range: weekday 1–7, month day 1–31, N ≥ 1, start date a real
-  calendar date;
+- a schedule field is out of range: weekday 1–7, month day 1–31, N an integer from 1 to 3660
+  (about ten years), start date a real calendar date;
+- the deep link is present but not a safe app link (see "Phone deep link");
 - the sleep minutes are negative or not whole;
 - the device visibility is not one of all, desktop or phone;
 - the Edge mode is not one of inherit, never or always;
@@ -122,6 +123,28 @@ system SHALL reject an unknown preset, or a custom preset with an empty or over-
 #### Scenario: Custom without a string
 - **WHEN** an item has the custom preset and an empty custom string
 - **THEN** a userAgent error is reported
+
+### Requirement: Phone deep link
+An item MAY carry a phone deep link: a target the phone opens instead of a web address, for an
+app installed on the phone (an Android `intent:` URI or a custom scheme). It is editable on the
+desktop and the phone, but the desktop never opens it. An absent deep link is valid.
+
+The system SHALL reject a deep link that is blank, longer than 2048 characters, contains
+whitespace or control characters, uses an unsafe scheme (`javascript`, `data`, `file`, `blob`,
+`vbscript`), or is an `intent://` whose `S.browser_fallback_url` uses an unsafe scheme. Some
+otherwise-valid intents MAY be refused in exchange for this safety.
+
+#### Scenario: A safe deep link is accepted
+- **WHEN** an item has the deep link "intent://open/#Intent;scheme=myapp;package=com.example.app;end"
+- **THEN** no error is reported
+
+#### Scenario: An unsafe deep link is rejected
+- **WHEN** an item has the deep link "javascript:alert(1)", or an intent whose browser_fallback_url is a javascript: URL
+- **THEN** a deepLink error is reported and the item is not stored
+
+#### Scenario: Absent deep link
+- **WHEN** an item has no deep link
+- **THEN** no error is reported
 
 ### Requirement: Deletion rules
 Deleting SHALL be recorded as deletion markers so other devices learn of it:

@@ -495,6 +495,41 @@ test('approvedPrograms: default [], sanitised, not lost by other patches, surviv
   assert.deepEqual(open(dir).store.device().approvedPrograms, [], 'junk in the file becomes []');
 });
 
+test('pinnedItemId / pinnedCollapsed: default, updated, survives a restart, and a deleted item drops the pin', () => {
+  const dir = tmp();
+  const a = open(dir);
+  assert.equal(a.store.device().pinnedItemId, null);
+  assert.equal(a.store.device().pinnedCollapsed, false);
+  // pin a live item and collapse it
+  assert.equal(a.store.updateDevice({ pinnedItemId: 'it-word-game', pinnedCollapsed: true }).pinnedItemId, 'it-word-game');
+  assert.equal(a.store.device().pinnedCollapsed, true);
+  // an unknown item is dropped on sanitize
+  assert.equal(a.store.updateDevice({ pinnedItemId: 'no-such-item' }).pinnedItemId, null);
+  // other patches keep the pin
+  a.store.updateDevice({ pinnedItemId: 'it-word-game' });
+  assert.equal(a.store.updateDevice({ autostart: true }).pinnedItemId, 'it-word-game');
+  // survives a restart
+  assert.equal(open(dir).store.device().pinnedItemId, 'it-word-game');
+  // deleting the pinned item drops the pin on the next sanitize (remove calls cleanDevice)
+  ok(a.store.remove('item', 'it-word-game'));
+  assert.equal(a.store.device().pinnedItemId, null);
+});
+
+test('diskCacheMB: default 200, clamped 50..1024, kept by other patches, survives a restart', () => {
+  const dir = tmp();
+  const a = open(dir);
+  assert.equal(a.store.device().diskCacheMB, 200);
+  assert.equal(a.store.updateDevice({ diskCacheMB: 150 }).diskCacheMB, 150);
+  assert.equal(a.store.updateDevice({ diskCacheMB: 5 }).diskCacheMB, 50);
+  assert.equal(a.store.updateDevice({ diskCacheMB: 100000 }).diskCacheMB, 1024);
+  assert.equal(a.store.updateDevice({ autostart: true }).diskCacheMB, 1024, 'other patches keep it');
+  assert.equal(open(dir).store.device().diskCacheMB, 1024, 'survives a restart');
+  fs.writeFileSync(path.join(dir, 'device.json'), JSON.stringify({ listWidth: 300 }));
+  assert.equal(open(dir).store.device().diskCacheMB, 200, 'an old device.json without it loads with the default');
+  fs.writeFileSync(path.join(dir, 'device.json'), JSON.stringify({ diskCacheMB: 'junk' }));
+  assert.equal(open(dir).store.device().diskCacheMB, 200, 'junk becomes the default');
+});
+
 // ---------------------------------------------------------------------------------------------
 // ticks without a connection (offline-ticks)
 

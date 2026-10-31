@@ -160,6 +160,7 @@ async function boot() {
     Menu: menuApi,
     clipboard: clipboardApi,
     openPageInEdge: (itemId) => { void api?.handlers.openPageInEdge(itemId); },
+    pinnedItemId: () => store.device().pinnedItemId,
   });
 
   api = createApi({

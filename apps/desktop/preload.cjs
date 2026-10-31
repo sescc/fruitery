@@ -45,6 +45,8 @@ contextBridge.exposeInMainWorld('fruitery', {
   remove: call('remove'),
   saveSettings: call('saveSettings'),
   saveDevice: call('saveDevice'),
+  setPin: call('setPin'),
+  clearWebCache: call('clearWebCache'),
   // sync settings (the secret is only ever sent in, never returned)
   syncStatus: call('syncStatus'),
   syncConfigure: call('syncConfigure'),

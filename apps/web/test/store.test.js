@@ -93,6 +93,16 @@ test('Default since is 62 days back, widened to the longest every-N-days schedul
   assert.deepEqual((await getState(db, NOW)).completions.map((c) => c.periodKey), ['2026-08-10', '2026-08-12']);
 });
 
+test('The since-window stays bounded: an out-of-range every-N-days.n cannot be stored, so the scan never grows without limit', async () => {
+  const db = await seeded();
+  // n beyond the core cap (MAX_EVERY_N_DAYS = 3660) is rejected, so no stored schedule can widen the window past ~10 years
+  await rejectsWith(upsertEntities(db, { items: [itemOf('it-every-3-days', { schedule: { type: 'everyNDays', n: 3661, startDate: '2026-01-01' }, updatedAt: 5 })] }), 422);
+  // the largest valid n (3660) is accepted and getState still returns a well-formed snapshot
+  await upsertEntities(db, { items: [itemOf('it-every-3-days', { schedule: { type: 'everyNDays', n: 3660, startDate: '2026-01-01' }, updatedAt: 6 })] });
+  const s = await getState(db, NOW);
+  assert.equal(s.items.length, 11);
+});
+
 test('The default since uses the configured timezone to decide today', async () => {
   const db = await seededTokyo(await seeded());
   const ins = db.prepare('INSERT INTO completions (item_id, period_key, done_at) VALUES (?, ?, ?)');
@@ -230,6 +240,23 @@ test('userAgent: stored and returned; an item without it comes back with the def
   // a non-object userAgent is a shape error
   await rejectsWith(upsertEntities(db, { items: [itemOf('it-notes', { userAgent: 'chrome', updatedAt: 70 })] }), 400);
   assert.equal((await getState(db, NOW)).items.find((i) => i.id === 'it-notes').userAgent.preset, 'default');
+});
+
+test('deepLink: a safe app link is stored and returned; an unsafe one is 422; a client without it stores NULL', async () => {
+  const db = await seeded();
+  const dl = 'intent://open/#Intent;scheme=myapp;package=com.example.app;end';
+  const saved = await upsertEntities(db, { items: [itemOf('it-notes', { deepLink: dl, updatedAt: 50 })] });
+  assert.equal(saved.items[0].deepLink, dl);
+  assert.equal((await getState(db, NOW)).items.find((i) => i.id === 'it-notes').deepLink, dl);
+  // an older client that does not send the field at all: stored as NULL, returned as null
+  const { deepLink: _drop, ...without } = itemOf('it-notes', { updatedAt: 60 });
+  assert.equal((await upsertEntities(db, { items: [without] })).items[0].deepLink, null);
+  // an unsafe deep link: 422 with the deepLink field error, nothing stored
+  const bad = await rejectsWith(upsertEntities(db, { items: [itemOf('it-notes', { deepLink: 'javascript:alert(1)', updatedAt: 70 })] }), 422);
+  assert.deepEqual(bad.details, [{ id: 'it-notes', errors: [{ field: 'deepLink', code: 'invalid-deep-link' }] }]);
+  // a non-string deepLink is a shape error (400)
+  await rejectsWith(upsertEntities(db, { items: [itemOf('it-notes', { deepLink: 42, updatedAt: 70 })] }), 400);
+  assert.equal((await getState(db, NOW)).items.find((i) => i.id === 'it-notes').deepLink, null);
 });
 test('workspace ungroupedLabel: stored and returned; blank, over-long and blank-name workspaces are 422; a tombstone is always accepted', async () => {
   const db = await seeded();

@@ -70,6 +70,15 @@ test('The fallback URL must be http(s) when present', () => {
   assert.deepEqual(validateItem(makeItem({ fallbackUrl: null })), []);
 });
 
+test('deepLink: absent or null is valid; a safe deep link is accepted; an unsafe one is invalid-deep-link', () => {
+  assert.deepEqual(validateItem(makeItem()), []); // no deepLink field
+  assert.deepEqual(validateItem(makeItem({ deepLink: null })), []);
+  assert.deepEqual(validateItem(makeItem({ deepLink: 'intent://open/#Intent;scheme=myapp;package=com.example.app;end' })), []);
+  assert.deepEqual(validateItem(makeItem({ deepLink: 'myapp://open' })), []);
+  assert.equal(codeOf(validateItem(makeItem({ deepLink: 'javascript:alert(1)' })), 'deepLink'), 'invalid-deep-link');
+  assert.equal(codeOf(validateItem(makeItem({ deepLink: 'intent://x/#Intent;S.browser_fallback_url=javascript%3Aalert(1);end' })), 'deepLink'), 'invalid-deep-link');
+});
+
 test('The reset time must be a valid HH:MM', () => {
   for (const bad of ['25:00', '12:60', '4:00', '', 'noon', null]) {
     assert.equal(codeOf(validateItem(makeItem({ resetTime: bad })), 'resetTime'), 'invalid-time', String(bad));

@@ -2,7 +2,7 @@
 // Fruitery UI: workspace rail + item list + panes (layout A, D9). The UI owns layout math; main owns
 // the native site views and positions them in the pane boxes this UI reports.
 
-import { bucket } from '../../../packages/core/index.js';
+import { bucket, streak } from '../../../packages/core/index.js';
 import { liveWorkspaces, listModel, nextDueForItem, cycle, layoutOrDefault, editTarget, shouldOfferTick } from '../lib/viewmodel.js';
 import { normalizeAddress, addressErrorText, createClickDecider } from '../lib/address.js';
 import * as Layout from '../lib/layout.js';
@@ -10,6 +10,7 @@ import { clampListWidth, DEFAULT_LIST_WIDTH } from '../lib/list-width.js';
 import { renderRail } from './rail.js';
 import { renderList } from './list.js';
 import { renderPanes } from './panes.js';
+import { renderPinStrip } from './pin.js';
 import { openItemEditor, openWorkspaceEditor, openGroupEditor, openSettings } from './editor.js';
 import { openPanel } from './dialogs.js';
 import { h } from './dom.js';
@@ -68,6 +69,8 @@ function makeCtx() {
   /** Why ticking is off right now (text for the list notice and the toast), or null when it works. */
   ctx.tickNotice = () => tickNotice(ctx.state.sync, ctx.state.ticksEnabled);
   ctx.bucketOf = (/** @type {any} */ item) => bucket(item, ctx.snap().completions, ctx.state.now, ctx.snap().settings.timezone);
+  /** The item's completion streak {current, longest} in periods, or zeros when unscheduled. @param {any} item */
+  ctx.streakOf = (item) => streak(item, ctx.snap().completions, ctx.state.now, ctx.snap().settings.timezone);
 
   /**
    * A message beside the item list (native site views paint above the rest of the window, so a toast
@@ -236,6 +239,21 @@ actions.openPageInEdge = async (itemId) => {
   const r = await api.openPageInEdge(itemId);
   if (r.ok) return;
   ctx.toast(r.error === 'no-address' ? 'No page address to open yet' : 'Could not start Microsoft Edge.', null, 3000);
+};
+
+/** Pin an item to the strip at the bottom of the list column (e.g. a time-tracking site). @param {string} itemId */
+actions.pinItem = async (itemId) => {
+  await api.setPin({ itemId });
+};
+
+/** Remove the pinned item from the strip. */
+actions.unpinItem = async () => {
+  await api.setPin({ itemId: null });
+};
+
+/** Collapse or expand the pinned strip (the view is kept alive either way). */
+actions.togglePinCollapsed = async () => {
+  await api.setPin({ collapsed: !(ctx.state?.device?.pinnedCollapsed === true) });
 };
 
 /** A double click on a pane's title: show its address as an editable field. @param {string} paneId */
@@ -509,6 +527,7 @@ function render() {
     applyListWidth();
     renderRail(/** @type {HTMLElement} */ (document.getElementById('rail')), ctx);
     renderList(/** @type {HTMLElement} */ (document.getElementById('list')), ctx);
+    renderPinStrip(/** @type {HTMLElement} */ (document.getElementById('pin-strip')), ctx);
     renderPanes(/** @type {HTMLElement} */ (document.getElementById('panes')), ctx);
   } finally {
     rendering = false;

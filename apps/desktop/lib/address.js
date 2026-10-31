@@ -46,6 +46,31 @@ export function normalizeAddress(text) {
   return { ok: true, url: href };
 }
 
+/**
+ * Ctrl+Enter in the address field, as in Chrome/Edge: wrap the typed host as `www.<host>.com`,
+ * keeping any path/query/hash. Trims a leading scheme and `www.` and a trailing `.com` on the host
+ * token before wrapping, so the result is idempotent (`www.example.com` stays as is). Empty or
+ * whitespace-only input, and input whose host part is empty, are returned unchanged.
+ * @param {unknown} text
+ * @returns {string} the wrapped address, or the input unchanged when there is nothing to wrap
+ */
+export function wrapDotCom(text) {
+  if (typeof text !== 'string') return '';
+  const t = text.trim();
+  if (t === '') return t;
+  // split off a leading http(s):// scheme (other schemes are left for normalizeAddress to reject)
+  const schemeMatch = /^(https?:\/\/)/i.exec(t);
+  const scheme = schemeMatch ? schemeMatch[1] : '';
+  const afterScheme = t.slice(scheme.length);
+  // the host token is everything up to the first / ? #; the rest is kept verbatim
+  const sep = afterScheme.search(/[/?#]/);
+  let host = sep === -1 ? afterScheme : afterScheme.slice(0, sep);
+  const rest = sep === -1 ? '' : afterScheme.slice(sep);
+  host = host.replace(/^www\./i, '').replace(/\.com$/i, '');
+  if (host === '') return t; // nothing to wrap (e.g. "www.com", "http://")
+  return `${scheme}www.${host}.com${rest}`;
+}
+
 /** @param {'empty' | 'too-long' | 'invalid' | 'scheme'} error */
 export function addressErrorText(error) {
   if (error === 'scheme') return 'Only http:// and https:// addresses can be opened';

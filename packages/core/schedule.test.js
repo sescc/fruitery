@@ -1,7 +1,7 @@
 // @ts-check
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { periodKey, nextPeriodStart, previousPeriodStart, bucket, nextDue, validateSchedule } from './schedule.js';
+import { periodKey, nextPeriodStart, previousPeriodStart, bucket, nextDue, streak, validateSchedule, MAX_EVERY_N_DAYS } from './schedule.js';
 import { addDays, isoWeekday } from './time.js';
 import { makeItem, tokyo, utc, mulberry32 } from './fixtures.js';
 
@@ -169,6 +169,14 @@ test('validateSchedule reports out-of-range fields with codes', () => {
   assert.deepEqual(validateSchedule('daily'), [{ field: 'schedule', code: 'invalid-value' }]);
 });
 
+test('everyNDays.n is bounded by MAX_EVERY_N_DAYS: the max is valid, one beyond is out-of-range', () => {
+  assert.equal(MAX_EVERY_N_DAYS, 3660);
+  assert.deepEqual(validateSchedule({ type: 'everyNDays', n: MAX_EVERY_N_DAYS, startDate: '2026-10-01' }), []);
+  assert.deepEqual(validateSchedule({ type: 'everyNDays', n: MAX_EVERY_N_DAYS + 1, startDate: '2026-10-01' }), [
+    { field: 'schedule.n', code: 'out-of-range' },
+  ]);
+});
+
 test('periodKey never decreases as time moves forward (hourly sweep over 400 days)', () => {
   const schedules = /** @type {import('./schedule.js').Schedule[]} */ ([
     { type: 'daily' },
@@ -329,6 +337,69 @@ test('previousPeriodStart: daily, weekly, every-N-days (null before the start), 
   assert.equal(previousPeriodStart(m31, '2028-03-31'), '2028-02-29');
   assert.equal(previousPeriodStart(m31, '2027-05-31'), '2027-04-30');
   assert.throws(() => previousPeriodStart({ type: 'weekly', weekday: 9 }, '2026-10-12'), RangeError);
+});
+
+// ---- streak -------------------------------------------------------------------------------
+
+test('streak: unscheduled item and empty history are zero', () => {
+  assert.deepEqual(streak(makeItem({ schedule: null }), [], tokyo('2026-10-12T15:00'), TOKYO), { current: 0, longest: 0 });
+  assert.deepEqual(streak(makeItem({ id: 'a' }), [], tokyo('2026-10-12T15:00'), TOKYO), { current: 0, longest: 0 });
+});
+
+test('streak daily: consecutive days build current; today not done does not zero it', () => {
+  const item = makeItem({ id: 'a' }); // daily
+  const now = tokyo('2026-10-12T15:00'); // current period 2026-10-12
+  // done 10, 11 but not 12 yet: current counts back from the 11th -> 2
+  const c2 = [tick('a', '2026-10-10', 1), tick('a', '2026-10-11', 2)];
+  assert.deepEqual(streak(item, c2, now, TOKYO), { current: 2, longest: 2 });
+  // also done today: current includes it -> 3
+  const c3 = [...c2, tick('a', '2026-10-12', 3)];
+  assert.deepEqual(streak(item, c3, now, TOKYO), { current: 3, longest: 3 });
+});
+
+test('streak daily: a gap breaks current but longest remembers the best past run', () => {
+  const item = makeItem({ id: 'a' });
+  const now = tokyo('2026-10-12T15:00');
+  // a 4-day run 10-01..10-04, a gap, then 10-10, 10-11 (current, today not done)
+  const c = ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04', '2026-10-10', '2026-10-11'].map((d, i) => tick('a', d, i + 1));
+  assert.deepEqual(streak(item, c, now, TOKYO), { current: 2, longest: 4 });
+  assert.ok(streak(item, c, now, TOKYO).longest >= streak(item, c, now, TOKYO).current);
+});
+
+test('streak daily: a break right before today gives current 0 but keeps longest', () => {
+  const item = makeItem({ id: 'a' });
+  const now = tokyo('2026-10-12T15:00');
+  // done through 10-09 then nothing on 10-10, 10-11: the walk back from the 11th finds nothing done -> current 0
+  const c = ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09'].map((d, i) => tick('a', d, i + 1));
+  assert.deepEqual(streak(item, c, now, TOKYO), { current: 0, longest: 5 });
+});
+
+test('streak weekly: consecutive weeks counted by the weekly period', () => {
+  const item = makeItem({ id: 'w', schedule: { type: 'weekly', weekday: 1 } });
+  const now = tokyo('2026-10-14T10:00'); // current week starts 2026-10-12, not done yet
+  const c = [tick('w', '2026-09-28', 1), tick('w', '2026-10-05', 2)]; // the two prior Mondays
+  assert.deepEqual(streak(item, c, now, TOKYO), { current: 2, longest: 2 });
+});
+
+test('streak monthly day 31: the clamped sequence chains without drift', () => {
+  const item = makeItem({ id: 'm', schedule: { type: 'monthly', day: 31 } });
+  const now = tokyo('2027-03-15T12:00'); // current period 2027-03-31, not done yet
+  const c = [tick('m', '2026-12-31', 1), tick('m', '2027-01-31', 2), tick('m', '2027-02-28', 3)];
+  assert.deepEqual(streak(item, c, now, TOKYO), { current: 3, longest: 3 });
+});
+
+test('streak everyNDays: counted by the n-day period, unaffected by unrelated items', () => {
+  const item = makeItem({ id: 'e', schedule: { type: 'everyNDays', n: 3, startDate: '2026-10-01' } });
+  const now = tokyo('2026-10-12T12:00'); // periods: 01,04,07,10 (current 10, not done)
+  const c = [tick('e', '2026-10-04', 1), tick('e', '2026-10-07', 2), tick('other', '2026-10-10', 9)];
+  assert.deepEqual(streak(item, c, now, TOKYO), { current: 2, longest: 2 });
+});
+
+test('streak: a duplicate completion counts once', () => {
+  const item = makeItem({ id: 'a' });
+  const now = tokyo('2026-10-12T15:00');
+  const c = [tick('a', '2026-10-11', 1), tick('a', '2026-10-11', 2)];
+  assert.deepEqual(streak(item, c, now, TOKYO), { current: 1, longest: 1 });
 });
 
 test('previousPeriodStart is the inverse of nextPeriodStart for every schedule type over 200 random periods', () => {

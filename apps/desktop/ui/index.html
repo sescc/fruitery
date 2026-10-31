@@ -10,7 +10,10 @@
 <body>
   <div id="app">
     <nav id="rail" aria-label="Workspaces"></nav>
-    <aside id="list" tabindex="0" aria-label="Items"></aside>
+    <div id="list-col">
+      <aside id="list" tabindex="0" aria-label="Items"></aside>
+      <section id="pin-strip" aria-label="Pinned item" hidden></section>
+    </div>
     <div id="list-divider" role="separator" aria-orientation="vertical" aria-label="Resize the item list (double-click to reset)" title="Drag to resize, double-click to reset"></div>
     <main id="panes" aria-label="Panes"></main>
   </div>

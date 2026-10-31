@@ -98,6 +98,8 @@ export async function getState(db, nowMs, opts = {}) {
   ]);
   let since = opts.since ?? null;
   if (since === null) {
+    // the window is at least DEFAULT_SINCE_DAYS, widened to the largest everyNDays.n; that n is
+    // bounded by core validateSchedule (MAX_EVERY_N_DAYS), so this scan can never grow without limit
     let maxN = 0;
     for (const it of items) if (it.schedule?.type === 'everyNDays') maxN = Math.max(maxN, it.schedule.n);
     since = addDays(effectiveDay(nowMs, settings.timezone), -Math.max(DEFAULT_SINCE_DAYS, maxN));
@@ -127,7 +129,7 @@ const SHAPES = /** @type {Record<Kind, Record<string, (v: unknown) => boolean>>}
     url: nullable(isStr), appPath: nullable(isStr), fallbackUrl: nullable(isStr), devices: isStr,
     schedule: nullable(isObj), resetTime: isStr, notify: isBool, badge: isBool,
     edge: (v) => isObj(v) && isStr(/** @type {any} */ (v).mode) && nullable(isStr)(/** @type {any} */ (v).profile),
-    isolate: isBool, persistSessionCookies: isBool, sleepAfterMin: nullable(isNum), userAgent: nullable(isObj), deleted: isBool,
+    isolate: isBool, persistSessionCookies: isBool, sleepAfterMin: nullable(isNum), userAgent: nullable(isObj), deepLink: nullable(isStr), deleted: isBool,
   },
   settings: { timezone: isStr, googleEmail: nullable(isStr) },
 });

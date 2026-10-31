@@ -88,14 +88,15 @@ test('applyForm copies only PHONE_FIELDS: attempts to set desktop-only fields th
   const item = /** @type {any} */ (itemOf(snap(), 'it-word-game'));
   const out = applyForm(item, { kind: 'app', appPath: 'C:\\evil.exe', isolate: true, userAgent: { preset: 'chrome', custom: null }, edge: { mode: 'always', profile: null }, sleepAfterMin: 0, id: 'other', deleted: true, order: 99 }, NOW);
   for (const field of ['kind', 'appPath', 'isolate', 'userAgent', 'edge', 'sleepAfterMin', 'id', 'deleted', 'order']) assert.deepEqual(/** @type {any} */ (out)[field], item[field], field);
-  assert.deepEqual([...PHONE_FIELDS], ['name', 'url', 'fallbackUrl', 'workspaceId', 'groupId', 'schedule', 'resetTime', 'devices', 'notify', 'badge']);
+  assert.deepEqual([...PHONE_FIELDS], ['name', 'url', 'fallbackUrl', 'deepLink', 'workspaceId', 'groupId', 'schedule', 'resetTime', 'devices', 'notify', 'badge']);
 });
 
 test('applyForm changes each phone field, trims text, and treats blank optional text as null', () => {
   const item = /** @type {any} */ (itemOf(snap(), 'it-word-game'));
-  const out = applyForm(item, { name: '  Word game!  ', url: ' https://example.com/w ', fallbackUrl: ' ', resetTime: '04:30', devices: 'phone', notify: true, badge: true, schedule: { type: 'weekly', weekday: 3 } }, NOW);
-  assert.deepEqual([out.name, out.url, out.fallbackUrl, out.resetTime, out.devices, out.notify, out.badge, out.schedule], ['Word game!', 'https://example.com/w', null, '04:30', 'phone', true, true, { type: 'weekly', weekday: 3 }]);
+  const out = applyForm(item, { name: '  Word game!  ', url: ' https://example.com/w ', fallbackUrl: ' ', deepLink: ' myapp://open ', resetTime: '04:30', devices: 'phone', notify: true, badge: true, schedule: { type: 'weekly', weekday: 3 } }, NOW);
+  assert.deepEqual([out.name, out.url, out.fallbackUrl, out.deepLink, out.resetTime, out.devices, out.notify, out.badge, out.schedule], ['Word game!', 'https://example.com/w', null, 'myapp://open', '04:30', 'phone', true, true, { type: 'weekly', weekday: 3 }]);
   assert.equal(applyForm(item, { schedule: null }, NOW).schedule, null);
+  assert.equal(applyForm(item, { deepLink: '  ' }, NOW).deepLink, null); // blank deep link clears it
 });
 
 test('Moving to another workspace clears the group (core moveItem) unless the form also names a group there, and places the item last', () => {
